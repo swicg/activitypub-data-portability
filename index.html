@@ -27,6 +27,7 @@
         portability for an actor: using a domain, and Mastodon-style <code>Move</code>.
       </p>
     </section>
+
     <section id="sotd">
         <p>This is a draft of a future SocialCG report.</p>
       </section>
@@ -38,6 +39,149 @@
         implementations, moving to different installations of the same
         software, or changing domains.
       </p>
+    </section>
+
+    <section class="informative">
+      <h2>Core Concepts</h2>
+
+      <section class="informative">
+        <h3>Objects and Activities</h3>
+
+        <p>
+          The basic unit of data for the ActivityPub protocol is an
+          <a href="https://www.w3.org/TR/activitypub/#obj">ActivityPub Object</a>,
+          a structured (JSON) document with a set of required and optional
+          properties. The core set of properties are defined in the
+          <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-object">ActivityStreams 2</a>
+          data model specification, and ActivityPub adds a couple of additional
+          requirements (namely, that all objects must have a <code>type</code>
+          property, as well as a globally unique <code>id</code> that serves as
+          that object's location).
+        </p>
+        <p>
+          In terms of data migration and portability, objects by themselves
+          are very simple: because an object's <code>id</code> serves as its
+          location (as specified in
+          <a href="https://w3c.github.io/activitypub/#obj-id">ActivityPub Section 3.1</a>),
+          the process of moving an object is as simple transporting it (by any
+          appropriate protocol), and updating its <code>id</code> property to
+          its new location.
+        </p>
+        <p>
+          However, in the context of ActivityPub use cases, objects are almost
+          never encountered by themselves, in isolation. Because ActivityPub
+          is a protocol intended for building distributed social systems, it has
+          two important design aspects: one, authorship and provenance are
+          important, and two, objects are not intended to be created or mutated
+          directly, but are instead wrapped in lifecycle Activities (such as
+          <code>Create</code>, <code>Update</code>, <code>Delete</code>, and
+          others). In distributed system design, this is known as the Event
+          Sourcing pattern, where the state of each object is not stored directly,
+          but is instead constructed from a series of actions taken on the object.
+          The fact that these are social systems brings additional challenges:
+          the series of Actions are always attributed to (performed by) a
+          particular <a>Actor</a>. Also, these Actions typically have an intended
+          audience, which means that for any state change the object undergoes,
+          there may exist any number of stakeholders who must be informed about
+          those changes.
+        </p>
+        <p>
+          Taken together, the design aspects of the ActivityPub protocol present
+          non-trivial challenges, when it comes to data migration and portability.
+          Objects are never encountered by themselves, in isolation. Instead, they
+          exist only as an append-only series of Actions, each performed by an
+          Actor, within a social context (each action typically has intended
+          audiences, as well as other observers and stakeholders).
+          And because of that, moving an object means not only updating its
+          <code>id</code> to a new location, but it also means preserving its
+          chain of actions, authorship, and full social context.
+        </p>
+      </section>
+
+      <section class="informative">
+        <h3>ActivityPub Actor Identity</h3>
+
+        <p>
+          The <a href="https://www.w3.org/TR/activitypub/">ActivityPub 1.0 Specification</a>
+          was intentionally silent on the subject of <a>actor</a> identity,
+          authentication and authorization, leaving those up to <a>server</a>
+          implementers. Multiple implementations arose that modeled <a>actors</a>
+          as traditional user accounts, which controlled various types of data,
+          such as contents (posts, notes, comments, images, likes, etc), related
+          data such as bookmarks, social graphs (lists of followers and following
+          users), actor metadata, moderation decisions (block lists, mutes), and
+          more.
+        </p>
+        <p>
+          - data migration basically always means migration of a given Actor,
+            and all of the data that belongs to it
+          - complex mapping between Actor and users -- some Actors are controlled
+            by multiple users, and some users can have many Actors.
+          - discuss the 3 aspects of an Actor's identity: actor id (url),
+            actor webfinger identity, cryptographic material.
+        </p>
+      </section>
+
+      <section class="informative">
+        <h3>Instance Oriented Architecture</h3>
+
+        <p>
+          - for various historical reasons, ActivityPub implementations have
+            centered around the concept of Instances.
+          - this is not inherent in the ActivityPub protocol, but is an arbitrary
+            set of design choices, a historical artifact
+          - instances bundle together several key functions (which could be
+            separated, in theory):
+            1. Identity
+            2. Storage
+            3. Inbox/Outbox delivery, event subscriptions
+            4. Moderation
+            5. Community discovery
+          - the fact that these functions are bundled together makes portability
+            and migration even more challenging.
+        </p>
+      </section>
+
+      <section class="informative">
+        <h3>Data Portability, Migration, and Export</h3>
+
+        <p>
+          Data Portability, Migration, and Export / Backup, are separate but
+          closely related concepts.
+        </p>
+
+        <section class="informative">
+          <h4>Data Export / Backup (Data Model)</h4>
+
+          <p>
+            The ability to export all of the data for a given
+            <a>actor</a> is helpful as an additional mechanism of data recovery,
+            since it makes user-controlled backups possible (as opposed to server
+            administrator controlled backups of backend databases, etc). And
+            although the ability to export data, by itself, does not guarantee
+            data portability (since many current implementations provide only
+            export but not import functionality), having a well-defined and
+            documented export format at least makes future import functionality
+            possible.
+          </p>
+        </section>
+
+        <section class="informative">
+          <h4>Data Migration (Protocol)</h4>
+
+          <p>
+            Data Migration is the process of moving or copying
+          </p>
+        </section>
+      </section>
+
+      <section class="informative">
+        <h3>Data Portability</h3>
+
+        <p>
+        </p>
+      </section>
+    </section>
 
     <section class="informative">
       <h2>Terminology</h2>
@@ -47,6 +191,12 @@
       </p>
 
       <dl class="termlist">
+
+        <dt><dfn data-lt="actor|actors">actor</dfn></dt>
+        <dd>
+          A conforming
+          <a href="https://www.w3.org/TR/activitypub/#actors">ActivityPub Actor</a>.
+        </dd>
         <dt><dfn data-lt="instance|instances">instance</dfn></dt>
         <dd>An informal name for an ActivityPub <a>server</a>, specifically,
           a particular instance of a given ActivityPub server implementation.

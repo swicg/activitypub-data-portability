@@ -68,8 +68,8 @@
           its new location.
         </p>
         <p>
-          However, in the context of ActivityPub use cases, objects are almost
-          never encountered by themselves, in isolation. Because ActivityPub
+          However, in the context of ActivityPub use cases, objects are rarely
+          encountered by themselves, in isolation. Because ActivityPub
           is a protocol intended for building distributed social systems, it has
           two important design aspects: one, authorship and provenance are
           important, and two, objects are not intended to be created or mutated
@@ -88,13 +88,14 @@
         <p>
           Taken together, the design aspects of the ActivityPub protocol present
           non-trivial challenges, when it comes to data migration and portability.
-          Objects are never encountered by themselves, in isolation. Instead, they
-          exist only as an append-only series of Actions, each performed by an
+          Objects are rarely encountered by themselves, in isolation. Instead, they
+          exist as an append-only series of Actions, each performed by an
           Actor, within a social context (each action typically has intended
           audiences, as well as other observers and stakeholders).
           And because of that, moving an object means not only updating its
           <code>id</code> to a new location, but it also means preserving its
-          chain of actions, authorship, and full social context.
+          chain of actions, authorship, full social context, and often also
+          notifying all interested (authorized) observers of the move.
         </p>
       </section>
 
@@ -107,11 +108,22 @@
           authentication and authorization, leaving those up to <a>server</a>
           implementers. Multiple implementations arose that modeled <a>actors</a>
           as traditional user accounts, which controlled various types of data,
-          such as contents (posts, notes, comments, images, likes, etc), related
-          data such as bookmarks, social graphs (lists of followers and following
-          users), actor metadata, moderation decisions (block lists, mutes), and
-          more.
+          such as contents (posts, notes, comments, images, etc), reactions
+          (likes, reposts), related data such as bookmarks, social graphs (lists
+          of followers and following users), actor metadata, moderation decisions
+          (block lists, mutes), and more.
         </p>
+        <p>
+          Current implementations are oriented around three main aspects of
+          actor identity:
+        </p>
+        <ol>
+          <li>The actor's <code>id</code> which (as with other ActivityPub objects)
+            must be a fetch-able URL. The <code>id</code> is typically used as
+            the canonical identifier for the actor
+          </li>
+        </ol>
+
         <p>
           - data migration basically always means migration of a given <a>actor</a>
             first, followed by all of the data and metadata that the actor controls.
@@ -127,7 +139,7 @@
 
         <p>
           - for various historical reasons, ActivityPub implementations have
-            centered around the concept of Instances.
+            centered around the concept of <a>Instances</a>.
           - this is not inherent in the ActivityPub protocol, but is an arbitrary
             set of design choices, a historical artifact
           - instances bundle together several key functions (which could be
@@ -170,7 +182,8 @@
           <h4>Data Migration (Protocol)</h4>
 
           <p>
-            Data Migration is the process of moving or copying
+            In the context of this report, Data Migration is defined as the
+            process of moving or copying
           </p>
         </section>
       </section>
@@ -194,7 +207,7 @@
 
         <dt><dfn data-lt="actor|actors">actor</dfn></dt>
         <dd>
-          A conforming
+          A conformant
           <a href="https://www.w3.org/TR/activitypub/#actors">ActivityPub Actor</a>.
         </dd>
         <dt><dfn data-lt="instance|instances">instance</dfn></dt>

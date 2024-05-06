@@ -49,27 +49,30 @@
       <h2>Approach</h2>
       <p>The technical approach proposed for LOLA is, at a high level: </p>
       <ul>
-        <li>Advertise an OAuth endpoint for authorizing account portability (this can co-exist with other OAuth endpoints e.g.  for authenticating the user).</li>
-        <li>Use OAuth confirm authorization and give the destination server a secure token for the source server access that a full account copy would need</li>
-        <li>Describe how the destination server can use the secure token and finding the right endpoints to start copying data from the source</li>
-        <li>Object IDs may be generated in any mechanism the destination server chooses</li>
-        <li>Activities, media, allow and block lists and follow lists are in scope</li>
+        <li>Source server advertises an OAuth endpoint for authorizing account portability (this can co-exist with other OAuth endpoints e.g.  for authenticating the user).</li>
+        <li>Destination server initiates OAuth to gain user authorization and give the destination server a secure token for source server access requests</li>
+        <li>Destination server can use the secure token and find the right endpoints to start copying data from the source</li>
+        <li>The focus is on copying content (rather than a changelog).  The destination may populate an ActivityPub outbox.</li>
+        <li>Content object IDs may be generated in any mechanism the destination server chooses</li>
+        <li>Destination may also copy additional activities, media and allow/block/follow lists</li>
         <li>Private items are in scope if the user authorizes</li>
-        <li>Optionally, if the user asks later, define how the source server notifies follows of the source account that the account has moved and what 3rd party recipients can do with these notifications</li>
-        <li>Optionally, if the user asks later, replace the content at the source server with redirects to the destination server content.</li>
+        <li>Optionally, if the user asks later, the source server can notify follows of the source account that the account has moved and what 3rd party recipients can do with these notifications</li>
+        <li>Optionally, if the user asks later, the source server can redirect requests for content with URLs for the destination server.</li>
       </ul>
 
-      <p>Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved which is useful for testing of all kinds. It builds on a data format that can also be used for import/export.  Conversely, the mechanisms for export/import can then be followed by notify/redirect setups.  <p>
-
-      <p>Some use cases are not covered by this approach.  An offline server cannot participate in server-to-server portability mechanisms.  Servers may also be unwilling or unable to communicate directly in any way.  If the unwillingness to communicate is part of ‘defederating’ another server, we recommend that account portability be an exception to the defederation logic, as moving accounts is an important part of helping defederation work well for more people.</p>
     </section>
 
     <section class="informative">
       <h2>Use cases</h2>
 
-      <p>The approach outlined here along with dependency specs allows several of the migration use cases to be addressed, but of course not all.</p>
 
-      <p>Those intended to be addressed:</p>
+      <p>The primary user need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation and defederation decisions.  The connections between servers and the communities on servers form a structure that has close connections, looser connections and blocks, allowing many different types of communities to co-exist.  That does put a lot of pressure on users to be able to move their accounts (due to moderation decisions they disagree with, because of server defederation, or just to move closer to an affinity group).   A user making such an account move will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can provide these choices to users.</p>
+
+      <p>Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved which is useful for testing of all kinds. It builds on a data format that can also be used for import/export, and the mechanisms defined here for notify/redirect can also be used after an export then import to new location.  <p>
+
+      <p>Some use cases are not covered by this approach.  An offline server cannot participate in server-to-server portability mechanisms.  Servers may also be unwilling or unable to communicate directly in any way.  If the unwillingness to communicate is part of ‘defederating’ another server, we recommend that account portability be an exception to the defederation logic, as moving accounts is an important part of helping defederation work well for more people.</p>
+
+      <p>The <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/73cd/fep-73cd.md">Migration User Stories</a> FEP has a number of use cases that can be solved with LOLA, as well as some that can't.  Those intended to be addressed: </p>
 
       <ul>
         <li>1A Account-level redirect: Yes</li>

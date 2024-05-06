@@ -131,14 +131,14 @@
 
       <p>In the second phase, <b>copying content</b>, the destination uses its new access token in requests to the
         source server to authenticate its requests.  The destination makes requests to existing and new data endpoints
-        to fetch data and content.</p> 
+        to fetch data and content.  Because it is using an access token, the destination server is able to access private posts and metadata that are not normally accessible to 3rd party requesters</p> 
 
       <ul>
-        <li>Activities can be copied from the Outbox.  Using the access token, the destination server is able to access
-        private posts and metadata that is not normally accessible to all viewers of the outbox.</li>
-        <li>Activities also include likes and faves data. </li>
+        <li>Content can be copied from a new content collection endpoint.</li>
+        <li>Content objects include likes and faves data. </li>
         <li>Allow and block lists are downloaded from a new endpoint.</li>
         <li>Group membership data is downloaded from a new endpoint.</li>
+        <li>Activities in the outbox that are not content objects (Likes, reads, views) can be copied from the outbox.</li>
       </ul>
 
       <p>The final phase, <b>notifications and redirects followup</b>, happens asynchronously.  </p>
@@ -201,7 +201,7 @@
       </p>
 
       <p>
-        There are a few “good-citizen” level implementation considerations when moderating content.  Since the user
+        There are a few “good-citizen”-type implementation considerations when moderating content.  Since the user
         may delete/disable their original account in communications directly with the source server, it would surely
         be useful for them to know whether all of their content had been accepted on the destination before they do 
         that.  We don’t make any recommendations for implementations how to do this, as many options are available.
@@ -246,8 +246,7 @@
       <p>
         Accounts that follow a moved account may get a notification, via a Move activity, that they have an opportunity
         to follow a new Actor and stop following the old. They might not get the notification, might ignore it, or might 
-        fail to follow the new account. In any case, any new successful Follow activities from previous followers are brand
-        new and have no visible or necessary relationship to old Follow activities.
+        fail to follow the new account. In any case, any new successful Follow activities from previous followers are brand-new and have no visible or necessary relationship to old Follow activities.
       </p>
 
       <p>
@@ -388,7 +387,7 @@
       </p>
 
       <p>
-        Using the access token, the destination requests the actor profile to find out which URLs the source server offers to access the outbox, following collection, blocked collection, and group collection.  
+        Using the access token, the destination requests the actor profile to find out which URLs the source server offers to access the outbox, content collection, following collection, blocked collection, and group collection.  
       </p>
       <ul>
         <li>
@@ -417,6 +416,7 @@
     "name": "Evan Prodromou",
     "inbox": "https://example.com/evanp/inbox",
     "outbox": "https://example.com/evanp/outbox",
+    "content": "https://example.com/evanp/content",
     "following": "https://example.com/evanp/following",
     "followers": "https://example.com/evanp/followers",
     "liked": "https://example.com/evanp/liked",
@@ -426,14 +426,14 @@
 </pre>
 
 
-      <h3>Fetching Migration Outbox</h3>
+      <h3>Fetching Content Collection</h3>
 
       <p>
-        The source server should include these object types in the migration outbox:
+        The source server should include these object types in the content collection:
       </p>
       <ul>
         <li>
-          All Activity subtypes (unless filtered by the scope chosen by the user)
+          Note and other Activity types that have content.
         </li>
         <li>
           Media objects that are hosted by the source server - if it is a resource that would go away if the source server were to receive an account deletion request, then it should be here for copying over.
@@ -441,14 +441,18 @@
       </ul>
 
       <p>
+        The source server MUST NOT include content wrapper or content modification activities in the content collection, including Create, Update and Delete activities.  The end result of creates, updates and deletes is what we're aiming to see here.
+      </p>
+
+      <p>
         The source server should include for each object type as appropriate:
       </p>
       <ul>
         <li>
-          If available, the ‘source’ of the activity as well as the  content 
+          If available, the ‘source’ of the activity as well as the content 
         </li>
         <li>
-          All destination fields
+          Destinations, inReplyTo, URL, id, and other attributes
         </li>
         <li>
           All other access control or privilege metadata
@@ -457,13 +461,9 @@
         </li>
       </ul>
 
-      <p>
-
-        Open Issue:  Should the source server merge “update” and “delete” activity into its content?   Thus, an updated object appears not as the original, but the final updated object, and deleted objects do not appear.  This is the tip of the iceberg of a tradeoff between significantly different approaches - whether we attempt to copy a content repository, or a changelog including the content.  
-      </p>
 
       <p>
-        If the source server has has ‘likes’ information on objects, it should include that collection in each object as per <a href="https://www.w3.org/TR/activitypub/#likes">https://www.w3.org/TR/activitypub/#likes</a>. If the source server has ‘shares’ information, that is included as per <a href="https://www.w3.org/TR/activitypub/#shares">https://www.w3.org/TR/activitypub/#shares</a>. 
+        If the source server has has ‘likes’ information on objects, it should include that collection in each object as per <a href="https://www.w3.org/TR/activitypub/#likes">https://www.w3.org/TR/activitypub/#likes</a>. If the source server has ‘shares’ information, that is included as per <a href="https://www.w3.org/TR/activitypub/#shares">https://www.w3.org/TR/activitypub/#shares</a>.  The source server MAY limit the size of particularly large likes and shares collections.
       </p>
 
       <p>
@@ -515,7 +515,7 @@
       <h4>Actor ID</h4>
 
       <p>
-        The actor ID of an object MAY change or be kept the same.  In the personal account migration use case, presumably old and new content should be harmonized, and the new actor “owns” the content so it SHOULD be the new actor.  However, if an implementation is using account portability functions for a different use case, such as merging individual contributions into a group blog, it MAY keep the original actor.  A destination server should attempt to provide appropriate GUI affordances to be able to tell whether to keep or rewrite the Actor property.  For example, an account page with text like “Move my content from old account” would indicate a wish to update the actor ID. 
+        The actor ID of an object MAY change or be kept the same.  In the personal account migration use case, presumably old and new content should be harmonized, and the new actor “owns” the content so it SHOULD be the new actor.  However, if an implementation is using account portability functions for a different use case, such as merging individual contributions into a group blog, it MAY keep the original actor.  Nomadic identities may also result in keeping the same actor.  A destination server should attempt to provide appropriate GUI affordances to be able to tell whether to keep or rewrite the Actor property.  For example, an account page with text like “Move my content from old account” would indicate a wish to update the actor ID. 
       </p>
 
       <p>
@@ -524,6 +524,14 @@
       <p>
         Open issue: how is interoperability if the actor is unassociated with the account where the object is now available?
       </p>
+
+      <h4>Adding to Outbox</h4>
+
+      <p>A destination server MAY post some or all migrated content to the outbox.  This specification defines a new Activity type, "Copy", to help 3rd parties make decisions about whether to notify or take other action based on seeing the activity. For 3rd party backward compatibility, the "Create" Activity SHOULD be used along with the "Copy" activity:
+
+      <pre>
+  "type": ["Create", "Copy"]
+      </pre>
 
       <h4>Copying “Likes”</h4>
       <p>
@@ -572,7 +580,7 @@
       <h4>Example Copied Object</h4>
 
       <p>
-        An activity originating from a moved account with a new Object ID and breadcrumbs may look like this when fetched.  Note the ID is changed and is dereferencable at the new site, but the ‘to’ and ‘published’ values are historical.
+        An activity originating from a moved account with a new Object ID and breadcrumbs may look like this when fetched from a new content collection location (without an outbox Activity wrapper).  Note the ID is changed and is dereferencable at the new site, but the ‘to’ and ‘published’ values are historical.
       </p>
 
       <pre>
@@ -581,13 +589,56 @@
   "@context": ["https://www.w3.org/ns/actvitystreams",
                {"@language": "en"}],
   "id": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
-  "previously": ["https://rhiaro.co.uk/2016/05/minimal-activitypub"]
+  "previously": ["https://rhiaro.co.uk/2016/05/minimal-activitypub"],
+  "attributedTo": "https://newsite.example.org/amy/"
   "to": ["https://rhiaro.co.uk/followers"],
   "type": "Article",
   "published": "2014-12-12T12:12:12Z",
   "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
 }
       </pre>
+
+      <h4>Example Copied Object in Outbox</h4>
+
+      <p>If the destination server chooses to place Create activities in the new outbox for some or all content items:</p>
+
+      <pre>
+{
+  "@context": ["https://www.w3.org/ns/actvitystreams",
+  "actor": "https://newsite.example.org/amy",
+  "id": "https://newsite.example.org/amy/items/e2495916-877c-4428-8ada-c199508ad855",
+  "to": [...],
+  "type": ["Copy", "Create"]
+
+  {
+    "@context": ["https://www.w3.org/ns/actvitystreams",
+                 {"@language": "en"}],
+    "id": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
+    "previously": ["https://rhiaro.co.uk/2016/05/minimal-activitypub"],
+    "attributedTo": "https://newsite.example.org/amy/"
+    "to": ["https://rhiaro.co.uk/followers"],
+    "type": "Article",
+    "published": "2014-12-12T12:12:12Z",
+    "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
+  }
+}
+      </pre>
+
+      <p>A destination server might also reference the copied article rather than wrap it:</p>
+
+      <pre>
+{
+  "@context": ["https://www.w3.org/ns/actvitystreams",
+  "actor": "https://newsite.example.org/amy",
+  "id": "https://newsite.example.org/amy/items/e2495916-877c-4428-8ada-c199508ad855",
+  "to": [...],
+  "type": ["Copy", "Create"]
+  "object": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
+  }
+}
+      </pre>
+
+      <h4>Example Copied Like</h4>
 
       <p>
         A like originating from a moved account may look like this when fetched - note the actor and ID are both dereferenceable for the new server, and the ‘previously’ value shows older IDs.

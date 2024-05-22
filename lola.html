@@ -11,7 +11,7 @@
     <script class="remove">
       var respecConfig = {
         specStatus: "unofficial",
-        isPreview: true,
+        isPreview: false,
         editors: [{name: "Lisa Dusseault", url: "https://dtinit.org"}],
         github: "",
         shortName: "LOLA",
@@ -21,7 +21,7 @@
   </head>
 
   <body>
-    
+
 
     <section id="abstract">
       <p>LOLA is a proposal for live online account portability between two ActivityPub servers at the request of a user. The goal is to allow the user to pursue the following workflow:</p>
@@ -35,9 +35,11 @@
 
       <p>Some of the pieces required to complete this workflow do not need to described as protocol or schema in order to be interoperable.  For example, the user can interact with an ActivityPub server using its Web pages for account management; for these tasks we need to describe what the server ought to be able to do, not how the user can ask it what to do.  </p>
 
-      <p>The S2S pieces of this workflow do need to be described in terms of URLs, messages and schemas in order to be interoperable and those are also covered in this document.</p>
+      <p>The server-to-server communications involved in this workflow do need to be described in terms of URLs, messages and schemas in order to be interoperable and those are also covered in this document.</p>
 
     </section>
+
+
     <section id="sotd">
       <p>This document is an individual submission to the SocialWeb Incubator Community Group, which has formed a task force to focus on the work of data portability.  Interested parties should join the public-swicg@w3.org mailing list to discuss.</p>
 
@@ -262,42 +264,35 @@
       <h3>Model for moving shares and likes</h3>
 
       <p>
-        In the ActivityPub specification, there is a user story involving Chris and Amy:
+        In the ActivityPub specification, there is a user story with examples, summarized as follows (users renamed to Aurora, Brock and Cherry):
       </p>
 
       <ul>
-        <li>Amy posts an article to her outbox which is delivered to her followers, including Chris, as well as Evan 
-        explicitly.</li>
-        <li>Chris posts a ‘like’ to his outbox, which is addressed to (or cc) Amy, her followers and Evan. </li>
-        <li>Upon receiving the notification from Chris’ server, Amy’s server saves a reference to the like object 
+        <li>Aurora posts an article to her outbox which is delivered to her followers as well as to Brock explicitly as a named recipient. Cherry is one of the followers who receives this.</li>
+        <li>Cherry posts a ‘like’ to his outbox, which is addressed to (or cc) Aurora, her followers and Brock. </li>
+        <li>Upon receiving the notification from Cherry’s server, Aurora’s server saves a reference to the like object 
           in the likes collection on the article.</li>
       </ul>
 
       <p>After the like/likes is propagated this way, there are several things that can happen.</p>
 
       <ul>
-        <li>Amy’s Activity can move and change object IDs.  This can happen with a domain name change, an account name 
-          change, or with server-to-server data portability that already exists (between instances of the same 
-          software, for example).</li>
-        <li>Amy’s Activity can also just disappear.</li>
-        <li>The “Like” in Chris’ outbox can move and change object IDs, for all the same reasons that Amy’s activity can.
-        It can also disappear.</li>
+        <li>Aurora’s Activity can move and change object IDs.  This can happen with a domain name change, an account name change, or with server-to-server data portability that already exists (between instances of the same software, for example).</li>
+        <li>Aurora’s Activity can also just disappear.</li>
+        <li>The “Like” in Cherry’s outbox can move and change object IDs, for all the same reasons that Aurora’s activity can.  It can also disappear.</li>
       </ul>
 
       <p>
         Presently, in these cases, what should happen is not standardized [I think].  If a Person update happens for 
-        Amy with a “movedTo” value, receiving servers could go looking for any reference including that Actor, and update 
-        their follows.
+        Aurora with a “movedTo” value, receiving servers could go looking for any reference including that Actor, and update their follows.
       </p>
 
       <ol>
         <li>
-          Knowing that Amy’s Activity also moved,  Chris’ server could <b>rewrite</b> his “Like” activity to point to the
-          new location. Presumably if this path is chosen, Chris’ server would do this with all users and all Likes that 
-          pointed to any moved thing.
+          Knowing that Aurora’s Activity also moved,  Cherry's server could <b>rewrite</b> his “Like” activity to point to the new location. Presumably if this path is chosen, Cherry's server would do this with all users and all Likes that pointed to any moved thing.
         </li>
         <li>
-          Amy’s Activity could move, and Chris’s server could learn about the move and know that it has Like activities referencing the original article, and nevertheless <b>leave them alone</b>.  They already propagated, their purpose is served.
+          Aurora’s Activity could move, and Cherry's server could learn about the move and know that it has Like activities referencing the original article, and nevertheless <b>leave them alone</b>.  They already propagated, their purpose is served.
         </li>
       </ol>
 
@@ -310,9 +305,8 @@
       </p>
 
       <ul>
-        <li>How far should change propagation go? If Amy moves her article and Chris’s Like gets updated does that propagate 
-        to Amy’s subscribers? Do they get notified? </li>
-        <li>Where should change propagation go to?  Original follower list at the time the item was sent out? Amy’s follower list today? 
+        <li>How far should change propagation go? If Aurora moves her article and Cherry's Like gets updated does that propagate to Aurora’s subscribers? Do they get notified? </li>
+        <li>Where should change propagation go to?  Original follower list at the time the item was sent out? Aurora’s follower list today? 
         </li>
         <li>A rewrite model, if it were to be relied upon, would require many OTHER servers to participate in a data transfer specification, not just the two servers directly involved.  This increases the difficulty of adoption.
         </li>
@@ -322,8 +316,7 @@
       </ul>
 
       <p>
-        In addition to assuming that 3rd party servers leave their likes alone in many cases, this specification recommends that the destination server add breadcrumbs to Activity and Like objects to record their prior identities. This is beneficial in showing a nuanced view of older data.  If necessary, a server interested in validating a collection of “Likes” submitted to it, can mostly do so (except for accounts that have disappeared) if the object that the collection of “Likes” it is on maintains a history of past object IDs.  Note that this still ALLOWS other servers to fix up their Likes but they 
-        can do so immediately, later, or never.
+        In addition to assuming that 3rd party servers leave their likes alone in many cases, this specification recommends that the destination server add breadcrumbs to Activity and Like objects to record their prior identities. This is beneficial in showing a nuanced view of older data.  If necessary, a server interested in validating a collection of “Likes” submitted to it, can mostly do so (except for accounts that have disappeared) if the object that the collection of “Likes” it is on maintains a history of past object IDs.  Note that this still ALLOWS other servers to fix up their Likes but they can do so immediately, later, or never.
       </p>
     </section>
 
@@ -333,13 +326,11 @@
 
       <h2>Discovery </h2>
 
-      <p>
-        TBD - working with Aaron Parecki
-      </p>
+      <p>The goal of discovery is so that a user can type in a source server domain or copy in their Actor ID when asking to copy content to a new account, and the destination server can automatically contact the source server to see if it can request authorization via OAuth and with a scope appropriate for account portability.  If the answer to that is successful, the destination server can probably do a lot more than if discovery fails to show that the source server supports this specification.<p>
 
-      <p>
-        How does the source server advertise its OAuth endpoints and its endpoints that specifically support copying account data and content
-      </p>
+      <p>This section will likely be replaced by a reference to a OAuth server metadata field or fields,
+      which will have to be registered with IANA as per RFC8414.</p>
+
     </section>
 
     <section>
@@ -411,17 +402,17 @@
         "https://www.w3.org/ns/activitystreams",
         "https://purl.archive.org/socialweb/blocked"
     ],
-    "id": "https://example.com/evanp",
+    "id": "https://oakfrost.example.com/brock",
     "type": "Person",
-    "name": "Evan Prodromou",
-    "inbox": "https://example.com/evanp/inbox",
-    "outbox": "https://example.com/evanp/outbox",
-    "content": "https://example.com/evanp/content",
-    "following": "https://example.com/evanp/following",
-    "followers": "https://example.com/evanp/followers",
-    "liked": "https://example.com/evanp/liked",
-    "blocked": "https://example.com/evanp/blocked",
-    "migration": "https://example.com/evanp/outbox"
+    "name": "Brock Oakfrost",
+    "inbox": "https://oakfrost.example.com/brock/inbox",
+    "outbox": "https://oakfrost.example.com/brock/outbox",
+    "content": "https://oakfrost.example.com/brock/content",
+    "following": "https://oakfrost.example.com/brock/following",
+    "followers": "https://oakfrost.example.com/brock/followers",
+    "liked": "https://oakfrost.example.com/brock/liked",
+    "blocked": "https://oakfrost.example.com/brock/blocked",
+    "migration": "https://oakfrost.example.com/brock/outbox"
 }
 </pre>
 
@@ -506,10 +497,10 @@
         Note objects should be presented directly in the destination outbox after migration.  TBD - we need to confirm if this avoids triggering UX notifications on 3rd party servers.
       </p>
 
-      <h4>Changing Object IDs</h4>
+      <h4>Object IDs</h4>
 
       <p>
-        As the destination server copies Activity and Like objects, it MAY define its own object IDs and apply them.  Destination servers that use numeric IDs or GUIDs can generate them in a way that seems appropriate.  Destination servers that use dates or slugs in object IDs can pull that information out of object metadata.
+        As the destination server copies Activity and Like objects, it MUST create or choose a new context-appropriate Object ID for each object.  Destination servers that use numeric IDs or GUIDs can generate them in a way that seems appropriate.  Destination servers that use dates or slugs in object IDs can pull information necessary to create those object IDs out of object metadata.  Although the destination server CAN use part of the object's prior ID it doesn't have to, and since it is making a copy of an object that still exists elsewhere it can't use the exact same object ID. 
       </p>
 
       <h4>Actor ID</h4>
@@ -586,12 +577,12 @@
       <pre>
 
 {
-  "@context": ["https://www.w3.org/ns/actvitystreams",
+  "@context": ["https://www.w3.org/ns/activitystreams",
                {"@language": "en"}],
-  "id": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
-  "previously": ["https://rhiaro.co.uk/2016/05/minimal-activitypub"],
-  "attributedTo": "https://newsite.example.org/amy/"
-  "to": ["https://rhiaro.co.uk/followers"],
+  "id": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
+  "previously": ["https://lemongrove.example.co.uk/2016/05/minimal-activitypub"],
+  "attributedTo": "https://newsite.example.org/aurora/"
+  "to": ["https://lemongrove.example.co.uk/followers"],
   "type": "Article",
   "published": "2014-12-12T12:12:12Z",
   "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
@@ -604,19 +595,19 @@
 
       <pre>
 {
-  "@context": ["https://www.w3.org/ns/actvitystreams",
-  "actor": "https://newsite.example.org/amy",
-  "id": "https://newsite.example.org/amy/items/e2495916-877c-4428-8ada-c199508ad855",
+  "@context": ["https://www.w3.org/ns/activitystreams",
+  "actor": "https://newsite.example.org/aurora",
+  "id": "https://newsite.example.org/aurora/items/e2495916-877c-4428-8ada-c199508ad855",
   "to": [...],
   "type": ["Copy", "Create"]
 
   {
-    "@context": ["https://www.w3.org/ns/actvitystreams",
+    "@context": ["https://www.w3.org/ns/activitystreams",
                  {"@language": "en"}],
-    "id": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
-    "previously": ["https://rhiaro.co.uk/2016/05/minimal-activitypub"],
-    "attributedTo": "https://newsite.example.org/amy/"
-    "to": ["https://rhiaro.co.uk/followers"],
+    "id": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
+    "previously": ["https://lemongrove.example.co.uk/2016/05/minimal-activitypub"],
+    "attributedTo": "https://newsite.example.org/aurora/"
+    "to": ["https://lemongrove.example.co.uk/followers"],
     "type": "Article",
     "published": "2014-12-12T12:12:12Z",
     "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
@@ -628,12 +619,12 @@
 
       <pre>
 {
-  "@context": ["https://www.w3.org/ns/actvitystreams",
-  "actor": "https://newsite.example.org/amy",
-  "id": "https://newsite.example.org/amy/items/e2495916-877c-4428-8ada-c199508ad855",
+  "@context": ["https://www.w3.org/ns/activitystreams",
+  "actor": "https://newsite.example.org/aurora",
+  "id": "https://newsite.example.org/aurora/items/e2495916-877c-4428-8ada-c199508ad855",
   "to": [...],
   "type": ["Copy", "Create"]
-  "object": "https://newsite.example.org/amy/items/02751cab-7dd7-416b-905b-...",
+  "object": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
   }
 }
       </pre>
@@ -641,7 +632,7 @@
       <h4>Example Copied Like</h4>
 
       <p>
-        A like originating from a moved account may look like this when fetched - note the actor and ID are both dereferenceable for the new server, and the ‘previously’ value shows older IDs.
+        A like originating from a moved account may look like this when fetched - note the actor and ID are both dereferenceable for the new server, and the ‘previously’ value shows older IDs.  Note also that the Like has some old and possibly obsolete 'to' addresses.  The Like was originally distributed to Cherry's followers when Cherry was on mistywing.example.org, not to Cherry's followers at newserver.example.org, and the 'to' addresses do not have to be rewritten to try to translate to different follower lists at different locations.  
       </p>
       <pre>
 
@@ -649,16 +640,16 @@
   "@context": ["https://www.w3.org/ns/activitystreams",
                {"@language": "en"}],
   "type": "Like",
-  "actor": "https://newserver.example.org/chris/",
-  "id": "https://newserver.example.org/chris/like/1972"
-  "previously": ["https://dustycloud.org/chris/like/228"]
-  "name": "Chris liked 'Minimal ActivityPub update client'",
-  "object": "https://rhiaro.co.uk/2016/05/minimal-activitypub",
+  "actor": "https://newserver.example.org/cherry/",
+  "id": "https://newserver.example.org/cherry/like/1972"
+  "previously": ["https://mistywing.example.org/cherry/like/228"]
+  "name": "Cherry liked 'Minimal ActivityPub update client'",
+  "object": "https://lemongrove.example.co.uk/2016/05/minimal-activitypub",
   "published": "2014-12-14T14:14:14Z",
-  "to": ["https://rhiaro.co.uk/#amy",
-         "https://dustycloud.org/followers",
-         "https://rhiaro.co.uk/followers/"],
-  "cc": "https://e14n.com/evan"
+  "to": ["https://lemongrove.example.co.uk/#aurora",
+         "https://mistywing.example.org/followers",
+         "https://lemongrove.example.co.uk/followers/"],
+  "cc": "https://oakfrost.example.com/brock"
 }
 
       </pre>
@@ -871,5 +862,10 @@
       </p>
 
     </section>
+    <section id="conformance">
+      <p>This is required for specifications that contain normative material.</p>
+    </section>
+    
+
   </body>
 </html>

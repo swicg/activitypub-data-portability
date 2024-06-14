@@ -33,9 +33,15 @@
         <li>Optionally, at a later time, redirect the content at the source server to the destination server</li>
       </ul>
 
-      <p>Some of the pieces required to complete this workflow do not need to described as protocol or schema in order to be interoperable.  For example, the user can interact with an ActivityPub server using its Web pages for account management; for these tasks we need to describe what the server ought to be able to do, not how the user can ask it what to do.  </p>
+      <p>The approach taken in this document is a set of normatively-described resources, along with a non-normatively
+        described over-arching process. The described out in this document are thus not normative - they are 
+        both a way of breaking down the content in this doc and a way of guiding implementors towards a process that
+      should work for moving accounts.  No shared state is implied in the phases.</p>
 
-      <p>The server-to-server communications involved in this workflow do need to be described in terms of URLs, messages and schemas in order to be interoperable and those are also covered in this document.</p>
+      <p>Some of the pieces required to complete this workflow do not need to described as protocol or schema in order to be interoperable.  For example, the user can interact with an ActivityPub server using its Web pages for account management; for these tasks we need to describe what the server ought to be able to do, not how the user can ask it what to do.  This specification uses the language of a <i>user communicating intent to a server</i>, 
+      and whether this intent is communicated via a Web page or a client protocol is out of scope of this document.</p>
+
+      <p>The server-to-server communications involved in this workflow do need to be reliable (URLs, messages and schemas) in order to be interoperable, so those sections are normative.</p>
 
     </section>
 
@@ -110,8 +116,8 @@
         <li>A user typically forms a desire to move to a specific ActivityPub server, the destination. They set up 
           an account there. The name or identity (e.g email address or login) of the account may have no relationship 
         to their old account.</li>
-        <li>The destination server hosts its own account management Web pages, including an affordance for the user to 
-          request data to be copied in from another account.</li>
+        <li>The destination server offers some way (out of scope) for the user to communicate intent for
+           data to be copied in from another account.</li>
         <li>The user requests their destination server to fetch data from another site by providing a ActivityPub 
           address or enough information to identify an ActivityPub node on an independent ActivityPub server, the 
           source</li>
@@ -125,11 +131,8 @@
         <li>The source server redirects the user to the destination server with an access token.</li>
       </ol>
  
-      <p>Note that the mechanism for the user request to the destination server is not specified in detail in this 
-        document.  It will most likely be accomplished through Web forms that do not need to be standardized across
-        servers.  This follows a pattern wherein rare account management work is done via Web pages, even when
-        day-to-day work happens via interoperable non-Web clients.   It also smoothly supports users who never use
-      a non-Web client and do all their interactions via Web pages.   </p>
+      <p>Note that the mechanism for the user communicating intent to the destination server is not specified in detail in this document.  It could be Web forms that do not need to be standardized across servers, or client protocol
+        mechanisms that are out of scope of this specification.  </p>
 
       <p>In the second phase, <b>copying content</b>, the destination uses its new access token in requests to the
         source server to authenticate its requests.  The destination makes requests to existing and new data endpoints
@@ -155,15 +158,14 @@
         redirect-only state, delete data, forbid logins etc.</li>
       </ul>
 
-      <p>In this document, the interoperability of redirects and notifications are considered, but the user interactions
-      with the server are assumed to happen via account management Web pages. </p>
+      <p>In this document, the interoperability of redirects and notifications are considered, but the way the user communicates their intent to setup a redirect is out of scope. </p>
 
 
       <h3>Trust decisions</h3>
 
       <p>The interactions above assumed a number of trust decisions happening invisibly.  Let's expose those and show
         how they can be made explicitly, even though decisions are probably enacted via automated moderation, manual
-        moderation, or account management or settings Web pages rather than via standardized protocol.  We encourage
+        moderation, or account management mechanisms, rather than via standardized protocol.  We encourage
         implementations to consider these trust decision-making points and build in appropriate notifications and
         confirmations to users or admins.
       </p>
@@ -832,17 +834,19 @@
         </li>
 
       </ul>
+    </section>
 
-      <h3>Third-Party Behavior</h3>
+      <section class="informative"> 
+      <h2>Third-Party Behavior</h2>
 
       <p>
         A server not involved in an account migration can be aware of this specification and might find the following considerations useful.
       </p>
 
-      <h4>Following up a ‘Like’ of moved object</h4>
+      <h3>Following up a ‘Like’ of moved object</h3>
 
       <p>
-        When a third-party server has a ‘Like’ activity pointing to a moved activity, it need not take any action to fix up ‘Like’ links.  However sometimes a user wants to dereference a Like and find the original article.  When the user is browsing their Likes via Web GUI, the server can attempt to use the original location and object ID of the Liked activity to find the activity’s new location.  
+        When a third-party server has a ‘Like’ activity pointing to a moved activity, it need not take any action to fix up ‘Like’ links.  However sometimes a user wants to dereference a Like and find the original article.  When the user is browsing their Likes and the ActivityPub server is aware of it, the server can attempt to use the original location and object ID of the Liked activity to find the activity’s new location.  
       </p>
 
       <p>
@@ -860,8 +864,8 @@
       <p>
         Open Issue: should the Like activity then be rewritten with the new location? Can a client do this - is there an affordance to update a Like? 
       </p>
-
     </section>
+
     <section id="conformance">
       <p>This is required for specifications that contain normative material.</p>
     </section>

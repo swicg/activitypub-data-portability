@@ -328,10 +328,87 @@
 
       <h2>Discovery </h2>
 
-      <p>The goal of discovery is so that a user can type in a source server domain or copy in their Actor ID when asking to copy content to a new account, and the destination server can automatically contact the source server to see if it can request authorization via OAuth and with a scope appropriate for account portability.  If the answer to that is successful, the destination server can probably do a lot more than if discovery fails to show that the source server supports this specification.<p>
+      <p>The goal of discovery is that once a user communciates their intent to a destination server to copy content from a source server, the destination server can discover how to get account access authorization and what features are available.</p>
 
-      <p>This section will likely be replaced by a reference to a OAuth server metadata field or fields,
-      which will have to be registered with IANA as per RFC8414.</p>
+      <p>While communicating their intent to copy account data over, the user may provide a source server domain or a full Actor ID on the source server. Either a domain or Actor ID will be enough to contact the source server.  If only the domain is provided, the Actor ID will be learned via the OAuth interaction. If the Actor ID is provided, OAuth is still required to authorize access.</p>
+
+      <h3>OAuth Endpoint in Authorization Server Metadata (.well-known)</h3>
+      <p>ActivityPub servers supporting this specification SHOULD include
+   the URL of their portability authorization endpoint in their
+   authorization server metadata document [RFC8414] using the
+   <b>activitypub_account_portability</b> parameter.</p>
+
+      <p>This parameter name will need to be registered in the IANA "OAuth
+   Authorization Server Metadata" registry established by [RFC8414].</p>
+
+      <h3>OAuth Endpoint Discovery via Actor object</h3>
+
+      <p>ActivityPub servers supporting this specification MUST provide the URL for their portability authorization endpoint in Actor objects, using the "accountPortabilityOauth" field.</p>
+
+        <p>Example Actor object</p>
+
+      <pre>
+  {
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://purl.archive.org/socialweb/blocked"
+    ],
+    "id": "https://oakfrost.example.com/brock",
+    "type": "Person",
+    "name": "Brock Oakfrost",
+    "accountPortabilityOauth": "https://example.com/oauth2/porting-access-endpoint",
+    "inbox": "https://oakfrost.example.com/brock/inbox"
+  }
+      </pre>
+
+      <h3>Role of destination server in discovery</h3>
+
+      <p>If the destination server finds the account portability OAuth endpoint via the [RFC8414] ".well-known" approach, it MUST gain authorization and use its authorization token when doing feature discovery.   </p>
+
+      <p>If the destination server requests the Actor object before gaining authorization, it MUST request the Actor object again using its authorization token to do feature discovery.</p>
+
+      <h3>Feature Discovery</h3>
+
+      <p>Feature discovery is bootstrapped by OAuth authorization, in case the source server does not want to advertise all features to all requestors of the Actor object.</p>
+
+      <p>The destination server MUST request use the authorization token when requesting the Actor object to find out which URLs the source server offers to access the data that will be copied during an account migration.  The source server MAY EITHER verify the authorization token and return the discovery URLs, OR skip verifying the authorization token and always return the discovery URLs.
+      </p>
+
+      <p>Example Actor object in response with portability authorization token included in request</p>
+      <pre>
+{
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://purl.archive.org/socialweb/blocked"
+    ],
+    "id": "https://oakfrost.example.com/brock",
+    "type": "Person",
+    "name": "Brock Oakfrost",
+    "accountPortabilityOauth": "https://example.com/oauth2/porting-access-endpoint",
+    "inbox": "https://oakfrost.example.com/brock/inbox",
+    "outbox": "https://oakfrost.example.com/brock/outbox",
+    "content": "https://oakfrost.example.com/brock/content",
+    "following": "https://oakfrost.example.com/brock/following",
+    "followers": "https://oakfrost.example.com/brock/followers",
+    "liked": "https://oakfrost.example.com/brock/liked",
+    "blocked": "https://oakfrost.example.com/brock/blocked",
+    "migration": "https://oakfrost.example.com/brock/outbox"
+}
+</pre>
+
+    <p>Notes</p>
+      <ul>
+        <li>
+          Login account names (source and destination) and actor names (source and destination) may all be completely unrelated.  A user “Alice” may transfer the “DeepThoughts” actor data on server A “@deepthoughts@a.example” to a “PhilosophicalMusings” actor owned by the account “AMuse” “@philomuse@b.example”, as long as she can log into both accounts and has permissions to authorize the transfer on both ends.
+        </li>
+        <li>
+          Nomadic IDs [ref to add], on the other hand, may allow an actor’s identity to be identical across servers.  <b>Open Issue</b>: How do servers supporting nomadic IDs transfer such IDs? how independent of account content migration is it?
+        </li>
+        <li>
+          URL discovery allows the account migration “outbox” to be different from the normal outbox if the source server prefers to implement it at a different URL, but it can also be the same URL.  There may be a number of differences between migration outbox and regular outbox, caused by permissions settings, filtering unnecessary items, filters explicitly chosen by the user, or other reasons we can't foresee now.  That said, a simple implementation can probably be successful using the same URL for both. 
+        </li>
+      </ul>
+
 
     </section>
 
@@ -340,24 +417,57 @@
       <h2>Authorization</h2>
 
       <p>
-        This specification is compatible with the OAuth 2.0 Profile for the ActivityPub API specification. An OAuth endpoint for authentication is probably a different URL than the OAuth endpoint for authorizing account migration. 
+        This specification is compatible with and independent of the OAuth 2.0 Profile for the ActivityPub API specification.   A server would be able to implement this specification and yet not use OAuth for user authentication, although the author thinks it would be best to support OAuth for both.
       </p>
 
-      <p>
-        TODO: We will define named scopes that support migrating a user account. The scope will be defined relative to an account.  We make no assumption about the name of the account relative to the destination account name or logged-in user.  
-      </p>
+      <p>Servers supporting this specification MUST support this OAuth mechanism to grant authorization.  However, a destination server could acquire an authorization token using some mechanism not defined in this specification, and it might be possible use that in the requests involved in copying data (next phase).  </p>
+
+      <p>The OAuth interaction defined in this specification takes place over HTTP, with messages passing between the destination server and a user's Web browser, between the user's Web browser and the source server, and finally between the destination server and source server.  The interaction can involve multiple back-and-forths between the user and the source server to re-authenticate, or to make choices relative to the access that could be granted.</p>
+
+      <p>The Oauth endpoint advertised using the two discovery mechanisms above MUST support the 'activitypub_account_portability' scope. This scope MUST be limited to an account - if there is more than one account on the source server, the source server MUST NOT allow access to any other accounts than the one granted, by requestors using the authorization token.</p>
 
       <p>
         Additional scopes for related use cases (e.g. backup, mirroring) can be defined in separate specifications. 
       </p>
 
-      <p>
-        TODO: we will define how long should the token be valid for.
-      </p>
 
-      <p>
-        The source server SHOULD enable authorizing account transfer even if the account has been suspended in some way (e.g. the user has been blocked from posting and/or existing posts are no longer served)
-      </p>
+      <h3>Destination directs to source server</h3>
+
+      <p>The destination server constructs a URL to direct the user's Web browser with the following parameters:</p>
+      <ul>
+        <li>response_type</li>
+        <li>redirect_uri</li>
+        <li>scope=<b>activitypub_account_portability</b></li>
+        <li>state - a random string verified by destination later</li>
+      </ul>
+
+
+      <h3>Source server verifies </h3>
+      <p>Upon receiving the Oauth authorization request, the source server has a number of things to verify or decide.</p>
+
+      <ul>
+        <li>Is the session over which this request is made authenticated? If not, the source server may need to authenticate the user and then resume.  A source server MAY request re-authentication at this point because account portability access can provide access to sensitive data.</li>
+        <li>Should it allow this request for the given authenticated user?  Although of course the source server MAY reject this request if a user has been suspended in some way, there are good arguments for allowing suspended users to still migrate their content to other servers. There are also reasons to block this, so the source server MAY block the user from granting portability access.</li>
+        <li>Should the source server allow this request for the given requesting server? It may be natural to consult a list of defederated servers while making this decision, but there are good arguments to allow a defederated server to gain access to the data of a user who really wants to move to that server.  There are also good arguments NOT to, so the source server MAY block the access request based on which destination server is asking.  </li> 
+        <li>Can the source server verify that the redirect_uri is legitimately to a known and trusted destination server? It may not be possible to verify this by comparing the redirect_uri root to a list of allowed federated servers, due to the possibilities for different software to run on one host.  This is still an <b>open issue</b> and we should discuss how the source server can validate the destination server here.</li>
+        <li>Are there any additional options it wants to offer the user?  For example, the source server could offer to filter private objects out of the data shared with the destination server.  If the user chooses to filter or limit scope, the source server MUST keep track of this when evaluating access requests using the authorization token.</li>
+      </ul>
+
+      <h3>Source server response</h3>
+      <p>If authorization is approved, the source server redirects the user back to the destination server with an authorization code with parameters:</p>
+      <ul>
+        <li>code - the authorization code</li>
+        <li>state - the same random string passed by destination server</li>
+        <li>activitypub_actor - the ActivityPub Actor ID associated with the one account that access is granted to.</li>
+      </ul>
+
+
+      <p>It is possible for the user to provide one Actor ID to the destination server, and then for the destination server to receive a different Actor ID in this response.  The destination server MAY confirm this with the user but MUST use the Actor ID provided with the authorization code rather than the original one the user communicated.</p>
+
+      <h3>Obtaining access token</h3>
+      <p>An access token is finally obtained by destination server asking the source server as per 4.1.3 and 4.1.4 in [RFC6749]. This is the token used in the HTTP Authorization header as described in section 7.1 of RFC6749.  This header MUST be included in feature discovery and data access requests.</p>
+
+
     </section>
 
     <section>
@@ -372,51 +482,6 @@
         The source server SHOULD enable copying data even if the account has been suspended in some way.  For example, even if the source server is not responding to general requests for posts for a suspended account, it should treat account migration requests with the account migration authorization token as bypassing the suspension. 
       </p>
 
-
-      <h3>Bootstrapping URL discovery</h3>
-
-      <p>
-        Although the OAuth URL must be discovered before authorization, other URLs that will be needed in account copying can be discovered after authorization, using the access token.  The source server is not obliged to keep these URLs secret if the access token is not provided, but it may. 
-      </p>
-
-      <p>
-        Using the access token, the destination requests the actor profile to find out which URLs the source server offers to access the outbox, content collection, following collection, blocked collection, and group collection.  
-      </p>
-      <ul>
-        <li>
-          Login account names (source and destination) and actor names (source and destination) may all be completely unrelated.  A user “Alice” may transfer the “DeepThoughts” actor data on server A “@deepthoughts@a.example” to a “PhilosophicalMusings” actor owned by the account “AMuse” “@philomuse@b.example”, as long as she can log into both accounts and has permissions to authorize the transfer on both ends.
-        </li>
-        <li>
-          Nomadic IDs [ref to add], on the other hand, may allow an actor’s identity to be identical across servers.  Servers supporting nomadic IDs have their own affordances to set and transfer such IDs independent of account content migration. 
-        </li>
-        <li>
-          URL discovery allows the account migration “outbox” to be different from the normal outbox if the source server prefers to implement it at a different URL, but it can also be the same URL.
-        </li>
-      </ul>
-
-      <p>
-        We propose to discover these URLs by having the destination server request the Actor object just as in the Blocked Collection FEP.  The destination server MUST provide the access token for this as with all interactions with the source server defined in this specification, in case the token helps the source server filter appropriately.  The source server need not verify the token if it doesn't need to change the response due to the token. 
-      </p>
-
-      <pre>
-{
-    "@context": [
-        "https://www.w3.org/ns/activitystreams",
-        "https://purl.archive.org/socialweb/blocked"
-    ],
-    "id": "https://oakfrost.example.com/brock",
-    "type": "Person",
-    "name": "Brock Oakfrost",
-    "inbox": "https://oakfrost.example.com/brock/inbox",
-    "outbox": "https://oakfrost.example.com/brock/outbox",
-    "content": "https://oakfrost.example.com/brock/content",
-    "following": "https://oakfrost.example.com/brock/following",
-    "followers": "https://oakfrost.example.com/brock/followers",
-    "liked": "https://oakfrost.example.com/brock/liked",
-    "blocked": "https://oakfrost.example.com/brock/blocked",
-    "migration": "https://oakfrost.example.com/brock/outbox"
-}
-</pre>
 
 
       <h3>Fetching Content Collection</h3>

@@ -34,12 +34,12 @@
       </ul>
 
       <p>The approach taken in this document is a set of normatively-described resources, along with a non-normatively
-        described over-arching process. The described out in this document are thus not normative - they are 
+        described over-arching process. The descriptions of user flows in this document are thus not normative - they are 
         both a way of breaking down the content in this doc and a way of guiding implementors towards a process that
-      should work for moving accounts.  No shared state is implied in the phases.</p>
+      should work for moving accounts.  No shared state or explicit signaling between servers is implied by the references to "phases" as perceived by the end-user.</p>
 
       <p>Some of the pieces required to complete this workflow do not need to described as protocol or schema in order to be interoperable.  For example, the user can interact with an ActivityPub server using its Web pages for account management; for these tasks we need to describe what the server ought to be able to do, not how the user can ask it what to do.  This specification uses the language of a <i>user communicating intent to a server</i>, 
-      and whether this intent is communicated via a Web page or a client protocol is out of scope of this document.</p>
+      and whether this intent is communicated via a Web page or some other client<>server protocol is out of scope of this document.</p>
 
       <p>The server-to-server communications involved in this workflow do need to be reliable (URLs, messages and schemas) in order to be interoperable, so those sections are normative.</p>
 
@@ -60,10 +60,10 @@
         <li>Source server advertises an OAuth endpoint for authorizing account portability (this can co-exist with other OAuth endpoints e.g.  for authenticating the user).</li>
         <li>Destination server initiates OAuth to gain user authorization and give the destination server a secure token for source server access requests</li>
         <li>Destination server can use the secure token and find the right endpoints to start copying data from the source</li>
-        <li>The focus is on copying content (rather than a changelog).  The destination may populate an ActivityPub outbox.</li>
-        <li>Content object IDs may be generated in any mechanism the destination server chooses</li>
-        <li>Destination may also copy additional activities, media and allow/block/follow lists</li>
-        <li>Private items are in scope if the user authorizes</li>
+        <li>The focus is on copying current account content (rather than a changelog or delta).  The destination may populate an ActivityPub outbox that mirrors or subsets the account's outbox on the source server.</li>
+        <li>Activity object IDs may be generated in any mechanism the destination server chooses, and old <code>id</code>s can be retained in or outside of objects on the destination server; addressing of objects is out-of-scope at this layer.</li>
+        <li>Destination may also query for additional activities defined in extensions, attachments/media, and extension-specified account metadata such as allow/block/group-membership lists in addition to the AP protocol's core data types</li>
+        <li>Activities with extension-defined privacy or authorization properties MAY be requested and sent, but the authorization behavior and assumptions for such requests and deliveries is out of scope of this specification and should be defined by such extensions</li>
         <li>Optionally, if the user asks later, the source server can notify follows of the source account that the account has moved and what 3rd party recipients can do with these notifications</li>
         <li>Optionally, if the user asks later, the source server can redirect requests for content with URLs for the destination server.</li>
       </ul>
@@ -74,7 +74,7 @@
       <h2>Use cases</h2>
 
 
-      <p>The primary user need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation and defederation decisions.  The connections between servers and the communities on servers form a structure that has close connections, looser connections and blocks, allowing many different types of communities to co-exist.  That does put a lot of pressure on users to be able to move their accounts (due to moderation decisions they disagree with, because of server defederation, or just to move closer to an affinity group).   A user making such an account move will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can provide these choices to users.</p>
+      <p>The primary user need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation and defederation decisions.  The connections between servers and the communities on servers form a structure that has close connections, looser connections, and explicit blocks, allowing many different types of communities to co-exist.  That does put a lot of pressure on users to be able to move their accounts (due to moderation decisions they disagree with, because of server defederation, or just to move closer to an affinity group).   A user making such an account move will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can provide these choices to users.</p>
 
       <p>Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved which is useful for testing of all kinds. The collections defined with migration data can lead smoothly to an interoperable export format that can share much code with migration support.  The mechanisms are independent of each other (beyond assuming the account migration authorization token), thus allowing reuse - e.g. the mechanisms for notify/redirect can also be used after a user moves to a new location using a different approach.  <p>
 
@@ -84,8 +84,8 @@
 
       <ul>
         <li>1A Account-level redirect: Yes</li>
-        <li>1B content-level redirect to a home page: Yes if source can manage it</li>
-        <li>1C Content-level redirect to same content: Possibly - needs more discussion</li>
+        <li>1B Activity-level redirect to a home page: Yes if source can manage it</li>
+        <li>1C Activity-level redirect to same content: Possibly - needs more discussion</li>
         <li>1D Partial move account (split account): As long as servers are willing to support the UX for partial move, this should be possible.</li>
         <li>1E Block list move: Yes</li>
         <li>1F Server-level block list move: Possibly - needs more discussion</li>

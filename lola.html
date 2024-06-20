@@ -86,8 +86,8 @@
         <li>1A Account-level redirect: Yes</li>
         <li>1B Activity-level redirect to a home page: Yes if source can manage it</li>
         <li>1C Activity-level redirect to same content: Possibly - needs more discussion</li>
-        <li>1D Partial move account (split account): As long as servers are willing to support the UX for partial move, this should be possible.</li>
-        <li>1E Block list move: Yes</li>
+        <li>1D Partial move account (split account): Not in scope.</li>
+        <li>1E Block list move: Yes - via mechanisms for extension-defined activities and objects</li>
         <li>1F Server-level block list move: Possibly - needs more discussion</li>
         <li>2. Move between defederated servers:  This use case is peculiarly constrained to “refuses connections
           from [a destination server] altogether”.  Instead, how about a source server that blocks another server’s 
@@ -328,7 +328,7 @@
         <p>Some consequences of this philosophy:</p>
 
         <ul>
-          <li>Account migration might not be the best tool for users to do account backups.  It might be better than no tool, but trying to migrate data to another live location involves enough different choices than account backup, that it is likely that the result would be some data loss.</li>
+          <li>Account migration might not be the best tool for users to do account backups.  It might be better than no tool, but trying to migrate data to another live location involves enough different choices than account backup, that it is likely that the result would be some data loss.  Note, for example, that a destination server that supports fewer features might not even request some kinds of objects from the source server, therefore those objects would not get copied during an account portability operation.</li>
           <li>The decision to recommend not migrating Create, Update, Delete activities is the result of considering tradeoffs between possible errors trying to do too-high-fidelity a copy, rather than sticking to the basics (not to mention, the greater likelihood that something simpler is more likely to be implemented).
           </li>
           <li>The source and destination server are both explicitly allowed to deviate from the default assumptions in many cases listed in this spec.  Strict compatibility with a strictly limiting spec would degrade the outcome in other ways, e.g. by requiring a server that doesn't support Markdown to host Markdown-formatted content rather than make a better decision.</li>
@@ -648,7 +648,7 @@
       </p>
 
       <p>
-        Most other values not specified here MAY change. The 'content' or 'type' values MAY change.
+        Most other values not specified here MAY change. The 'content' or 'type' values MAY change.  The destination is expected to do best-effort under the philosophy described in the Approach section.
       </p>
 
       <p>Supporting examples</p>

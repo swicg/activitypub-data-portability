@@ -691,7 +691,7 @@
       </pre>
       <p>The "actor" value SHOULD be included, because there is no guarantee that a 3rd party can derive the actor value from 
         an "id" value. The "actor" value is needed in order to validate the previous "id" value before trusting it.  Because
-        the destination server simply states the "previously" value, it cannot be entirely trusted.  A 3rd party MAY check the 
+        the destination server simply attests to the "previously" value, it cannot be entirely trusted without cryptographic and/or third-party verification.  A 3rd party MAY check the 
         original actor to make sure that it does redirect to the new Actor, but that check is not guaranteed to work because the
         source server hosting the original Actor may be inactive or have removed that Actor.  
       </p>
@@ -699,11 +699,11 @@
       <p>
         If an object lists an Actor/id in "previously", and that actor does not have a movedTo value, or if that movedTo
         value does not link (possibly in several hops) to the object's current location, then that "previously" value cannot 
-        be trusted.  If a "previously" value cannot be trusted, the expected behavior (though not REQUIRED) is that it is ignored. 
+        be trusted.  If a "previously" value cannot be trusted, the expected behavior (though not REQUIRED) is that it this specific value (or the entire array) be ignored but retained for future consumers. 
         Ignoring a "previously" value reduces the situation to an existing common situation, where ActivityPub agents 
         cannot be sure if an Object had been copied from somewhere else or not.  ActivityPub agents MAY keep a cache of 
         moved Actor history if they want to be more efficient in resolving and relying on breadcrumbs, although note that
-        a cache that is not carefully designed could prevent a user from recovering from an ill-destined move, by
+        a cache that is not carefully designed could prevent a user from recovering from an infelicitous or corrupted move operation, by
         continuing to keep a "movedTo" value that has already been replaced.
       </p>
 
@@ -1073,7 +1073,7 @@
         The source server SHOULD offer UI for the user to choose to mark their Actor as moved to the new server.   
         This is accomplished via the ‘movedTo’ property as explained and described in Data Portability in ActivityPub 
         [TODO: validate that the required value for movedTo is a single URL value pointing ideally to an Actor elsewhere]. 
-        The source server MUST offer UI for the user to delete their content (consider the “right to be forgotten” if the 
+        The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content (consider the “right to be forgotten” if the 
         user no longer trusts the source server with their content) while still hosting just the Actor with the ‘movedTo’ 
         property.  The source server SHOULD attempt to maintain this information for at least a year even if the account 
         is otherwise shut down (although this would of course not be maintained if the server changes domains, loses state, 

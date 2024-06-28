@@ -691,20 +691,8 @@
       </pre>
       <p>The "actor" value SHOULD be included, because there is no guarantee that a 3rd party can derive the actor value from 
         an "id" value. The "actor" value is needed in order to validate the previous "id" value before trusting it.  Because
-        the destination server simply attests to the "previously" value, it cannot be entirely trusted without cryptographic and/or third-party verification.  A 3rd party MAY check the 
-        original actor to make sure that it does redirect to the new Actor, but that check is not guaranteed to work because the
-        source server hosting the original Actor may be inactive or have removed that Actor.  
-      </p>
-
-      <p>
-        If an object lists an Actor/id in "previously", and that actor does not have a movedTo value, or if that movedTo
-        value does not link (possibly in several hops) to the object's current location, then that "previously" value cannot 
-        be trusted.  If a "previously" value cannot be trusted, the expected behavior (though not REQUIRED) is that it this specific value (or the entire array) be ignored but retained for future consumers. 
-        Ignoring a "previously" value reduces the situation to an existing common situation, where ActivityPub agents 
-        cannot be sure if an Object had been copied from somewhere else or not.  ActivityPub agents MAY keep a cache of 
-        moved Actor history if they want to be more efficient in resolving and relying on breadcrumbs, although note that
-        a cache that is not carefully designed could prevent a user from recovering from an infelicitous or corrupted move operation, by
-        continuing to keep a "movedTo" value that has already been replaced.
+        the destination server simply attests to the "previously" value, it cannot be entirely trusted without 
+        cryptographic and/or third-party verification.  See the Third-Party section for requirements for that verification. 
       </p>
 
       <p><b>Open Issue:</b> More discussion is needed for this proposal to see if it's worthwhile.  The whole point of 
@@ -728,20 +716,10 @@
 
       <p>Breadcrumbs on the destination solve the first three use cases in cases where Aurora's original Actor's movedTo 
         value can be verified. Good caching of moved Actor information could solve the last use case a lot of the time, 
-        but is not guaranteed.
-        In the fourth case, when an ActivityPub agent wants to use information in breadcrumbs but cannot validate them,
+        but is not guaranteed.  Other solutions could be designed, such as client-side signing or witness services. 
+        In the fourth use case, when an ActivityPub agent wants to use information in breadcrumbs but cannot validate them,
         safe behavior may depend on why it wants to validate the breadcrumb.
       </p>
-
-      <ul>
-        <li>If it looks like the current Actor has previously "liked" an Object based on its breadcrumb, but that 
-          breadcrumb cannot be verified, it's safer not to show it as "liked" - just as if it were a new Object.
-        </li>
-        <li>If it looks like the Object should be hidden based on its breadcrumb, but that breadcrumb cannot be verified,
-          either hiding it (conservative approach to hiding probable-unwanted content) or showing it 
-          (as if it were a new object, ignoring the breadcrumbs) both seem like justifiable behaviors.
-        </li>
-      </ul>
 
       <p>
 
@@ -978,10 +956,12 @@
         for the destination to understand that status code, this section is informative. 
       </p>
       <p>
-        Source servers have, as always with HTTP, a number of tools and mechanisms to use to keep load manageable.  
+        Source servers have a number of tools and mechanisms to use to keep load manageable thanks to the design of
+        <a href="https://www.rfc-editor.org/rfc/rfc7230">HTTP</a> and
+        <a href="https://www.w3.org/TR/activitystreams-core/">ActivityStreams</a>.  
       </p>
       <ul>
-        <li>Good pagination settings should be chosen for long collections of items.</li>
+        <li>Good ActivityStream pagination settings should be chosen for long collections of items.</li>
         <li>The source maintains no state during this phase, so load-balancing should be available as it normally would be.</li>
         <li>The source may limit active OAuth tokens per account or Actor, to avoid a single user from initiating too many 
         data copy sessions concurrently</li>
@@ -1041,7 +1021,7 @@
 
       <p>
         The source server SHOULD offer UI for the user to choose to notify followers of a new location.  This is 
-        done via the Move activity type, defined in 
+        done via the Move Activity type, defined in 
         <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-move">ActivityStreams Vocabulary</a> 
         and described more for use to move Actors in the 
         <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">Move Actor FEP</a>.
@@ -1057,13 +1037,14 @@
       </p>
 
       <p>
-        Open Issue: Can the destination server issue a Move activity if necessary?  It cannot be trusted, because a 
-        malicious actor could issue a Move activity for an account they have no legitimate access to.  It's not enough 
-        to check the source Actor to see if it has a movedTo value, because the malicious actor could specifically 
-        target accounts whose Actor has disappeared.  This is another good reason for source servers to host moved 
-        Actors as long as possible - to reduce opportunities for fraudulent Move Actor notifications. Recipients of 
-        Move Actor activities from any other than the server hosting the original Actor MAY ignore these Move requests 
-        if they cannot be verified.
+        Open Issue: Can the destination server send out Move activity if necessary?  This document proposes that the 
+        answer should be NO.  It cannot easily be trusted, because a malicious actor could issue a Move activity 
+        with the 'object' value an Actor ID they have no access to.  If we can't count on the
+        source server sending the Move Activity because it is not cooperating or not able to, then we also 
+        can't count on the source server verifying a destination-issued Move Activity. Until a more robust 
+        verification mechanism is designed (e.g. user-signed Move Activity with a previously known or proven key)
+        then we might as well not issue Move Activities on the destination.  See the Third-Party section for 
+        consequences for other agents.
       </p>
       
 
@@ -1072,25 +1053,21 @@
       <p>
         The source server SHOULD offer UI for the user to choose to mark their Actor as moved to the new server.   
         This is accomplished via the ‘movedTo’ property as explained and described in Data Portability in ActivityPub 
-        [TODO: validate that the required value for movedTo is a single URL value pointing ideally to an Actor elsewhere]. 
-        The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content (consider the “right to be forgotten” if the 
-        user no longer trusts the source server with their content) while still hosting just the Actor with the ‘movedTo’ 
+        The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content 
+        while still hosting just the Actor with the ‘movedTo’ 
         property.  The source server SHOULD attempt to maintain this information for at least a year even if the account 
-        is otherwise shut down (although this would of course not be maintained if the server changes domains, loses state, 
-        or has another significant event to break the continuity of redirect from old to new actor.)
+        is otherwise shut down.  The source server might not maintain the movedTo property on the correct Actor URL 
+        for a number of legitimate reasons (including change of domain which changes the URL, a request from the account 
+        holder to stop maintaining the movedTo value, or a request from the account holder to completely delete the Actor.) 
       </p>
 
 
       <p>
-        The movedTo property, although already in use, is defined here: 
+        The movedTo property is defined in 
+        <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">FEP 7628</a>
+        and its associated <a 
+        href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/context.jsonld">JSON-LD definition</a>.
       </p>
-
-      <table>
-        <tr><td>URI:</td><td>TBD</td></tr>
-        <tr><td>Notes:</td><td>A single value</td></tr>
-        <tr><td>Domain:</td><td>Actor</td></tr>
-        <tr><td>Range:</td><td>Link</td></tr>
-      </table>
 
       <p>Example:</p>
       <pre>
@@ -1150,42 +1127,122 @@
       <p>Note that this solution is very friendly to 3rd parties that are not only unaware of this specification but also 3rd parties that are browsers or other HTTP agents.</p>
 
       <p>
-        Note that a user may move their accounts AGAIN within the timeframe that their first server is still serving redirects.  It may be possible to fix up the ‘movedTo’ value on the first server, but it is also possible that the first server shows a ‘movedTo’ to a second server which shows a ‘movedTo’ to a third server. No 3rd-party is obliged to follow these links for any longer than they are inclined before giving up.
+        Note that a user may move their accounts AGAIN within the timeframe that their first server is still serving
+        redirects.  It may be possible to fix up the ‘movedTo’ value on the first server, but it is also possible
+        that the first server shows a ‘movedTo’ to a second server which shows a ‘movedTo’ to a third server. No
+        3rd-party is obliged to follow these links for any longer than they are inclined before giving up.
       </p>
 
     </section>
 
-      <section class="informative"> 
+      <section> 
       <h2>Third-Party ActivityPub Server Behavior</h2>
 
       <p>
-        A server not involved in an account migration can be aware of this specification and might find the following considerations useful.
+        A server not involved in an account migration either as a source or destination is a third-party.  
+        Third-parties can be aware of this specification and can implement this section, in which case
+        the conformance langage in this section becomes normative for that implementation.
       </p>
+
+      <h3>Relying on 'previously' values</h3>
+
+      <p>
+        The value of the 'previously' field can be used for a number of use cases, including to find out if 
+        the current third-party Actor has 'liked' a moved object, if they have replied to it, or if it was
+        previously muted/ignored.
+        If a third-party makes use of the 'previously' value, which it is not obliged to do, this specification
+        RECOMMENDS validating the information.  
+      </p>
+
+      <p>
+        Validating the 'previously' field is necessary not for all URLs in it, but for any URL that would
+        result in a change of behavior for the third-party (such as hiding a Object based on a URL in its 
+        'previously' field). That URL is validated by the third-party
+        checking the original Actor to make sure that it does have a 'movedTo' value pointing to the next
+        Actor.  If the next Actor is not the current provider of the 'previously' value, then either the chain
+        must continue to be validated, or the third-party can give up and decide the URL is not validated.
+      </p>
+
+      <p>
+        These validation checks can fail not because they are wrong but because one of the Actors needed
+        to validate is no longer online.  If that is the case, a cache or oracle mapping MAY be used
+        instead.  See cache considerations below in "Handling Move Activity and 'movedTo' property".
+      </p>
+
+      <p>
+        If a "previously" value cannot be trusted, the expected behavior (though not REQUIRED) is that 
+        it be ignored but retained for future consumers. 
+        Ignoring a "previously" value reduces the situation to an existing common situation, where ActivityPub agents 
+        cannot be sure if an Object has been copied from somewhere else or not.
+      </p>
+
+
+      <p>
+        Some sample decision factors to consider (informative) when deciding whether to make use
+        of an unvalidated 'previously' breadcrumb:
+      </p>
+
+      <ul>
+        <li>If it looks like the current Actor has previously "liked" an Object based on its breadcrumb, but that 
+          breadcrumb cannot be verified, it's safer not to show it as "liked" - just as if it were a new Object.
+        </li>
+        <li>If it looks like the Object should be hidden based on its breadcrumb, but that breadcrumb cannot be verified,
+          either hiding it (conservative approach to hiding probable-unwanted content) or showing it 
+          (as if it were a new object, ignoring the breadcrumbs) both seem like justifiable behaviors
+          depending on context.
+        </li>
+      </ul>
 
       <h3>Following up a ‘Like’ of moved object</h3>
 
       <p>
-        When a third-party server has a ‘Like’ activity pointing to a moved activity, it need not take any action to fix 
+        When a third-party server has a ‘Like’ activity pointing to a moved Activity, it need not take any action to fix 
         up ‘Like’ links.  However sometimes a user wants to dereference a Like and find the original article.  When the user 
         is browsing their Likes and the ActivityPub server is aware of it, the server can attempt to use the original location 
         and object ID of the Liked activity to find the activity’s new location.  
       </p>
 
       <p>
-        Open Issue: will the server even detect that the Like reference has moved?  It may only present a link to the remote object and not ever try to dereference it.
+        Open Issue: will the server even detect that the Like reference has moved?  It may only present a 
+        link to the remote object and not ever try to dereference it.
       </p>
 
       <p>
-        When a user is browsing Likes via ActivityPub client or using another C2S protocol, a smart client may find itself in the same situation - the user just clicked on a Like and the thing liked has moved.
+        When a user is browsing Likes via ActivityPub client or using another C2S protocol, a smart client may
+        find itself in the same situation - the user just clicked on a Like and the thing liked has moved.
       </p>
 
       <p>
-        The agent requesting the Liked item may receive a generic redirect to an Actor, not an Object (this won’t be obvious until the referenced resource is fetched).  If the agent finds an Actor, it may fetch a number of objects hoping to find one with a breadcrumb matching the original Like reference.
+        The agent requesting the Liked item may receive a generic redirect to an Actor, not an Object (this won’t
+        be obvious until the referenced resource is fetched).  If the agent finds an Actor, it may fetch a number
+        of objects hoping to find one with a breadcrumb matching the original Like reference.
       </p>
 
       <p>
-        Open Issue: should the Like activity then be rewritten with the new location? Can a client do this - is there an affordance to update a Like? 
+        Open Issue: should the Like activity then be rewritten with the new location? Can a client do this - is
+        there an affordance to update a Like? 
       </p>
+
+      <h3>Handling Move Activity and 'movedTo' property</h3>
+
+      <p>
+        Move Activity objects, if processed at all, MUST be checked to be sure that the sender is responsible for the
+        Actor listed in the 'object' field, to prevent malicious unauthorized Move Activity objects from being
+        issued by other parties.  If the sender does not appear to be responsible, a third party MAY 
+        check the Actor object listed in the 'object' field to see if there is a matching 'movedTo' property.
+        Move Activity objects that cannot be verified SHOULD be ignored.
+      </p>
+
+      <p>
+        Mappings of old Actor URLs to new locations listed in Move Activity objects or movedTo properties MAY
+        be cached to make it more efficient to validate "previously" values on objects.  A hypothetical 
+        cache might attempt to refresh the mapping if it is over 24 hours old, but if it can't be refreshed to 
+        maintain the cached value for much longer.  This design would allow mistakes to be corrected (such
+        as a 'movedTo' value that simply has the wrong URL, or a change of mind has occurred) while still
+        allowing longer-term validation of "previously" values even when the Actor's original server has
+        stopped serving the Actor object.
+      </p>
+
     </section>
     <section class="informative">
       <h2>Not In Scope</h2>

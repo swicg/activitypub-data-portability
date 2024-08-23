@@ -1,0 +1,1274 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>LOLA Portability for Activity Pub (0.2)</title>
+    <script
+      src="https://www.w3.org/Tools/respec/respec-w3c"
+      class="remove"
+      defer
+    ></script>
+    <script class="remove">
+      var respecConfig = {
+        specStatus: "unofficial",
+        isPreview: false,
+        editors: [{name: "Lisa Dusseault", url: "https://dtinit.org"}],
+        discussionUrl: "https://github.com/swicg/activitypub-data-portability/issues/",
+        github: "",
+        shortName: "LOLA",
+        group: "socialcg"
+      };
+    </script>
+  </head>
+
+  <body>
+
+
+    <section id="abstract">
+      <p>LOLA is a proposal for live online account portability between two ActivityPub servers at the request of a user. The goal is to allow the user to pursue the following workflow:</p>
+      <ul>
+        <li>Request a destination server to copy an ActivityPub account from a source server</li>
+        <li>Authorize the destination server to the source server</li>
+        <li>See the content in its new location after the destination server completes copying it over</li>
+        <li>Optionally, at a later time, ask the source server to send notifications to followers that the account is moving </li>
+        <li>Optionally, at a later time, redirect the content at the source server to the destination server</li>
+      </ul>
+
+      <p>The approach taken in this document is a set of normatively-described resources, along with a non-normatively
+        described over-arching process. The descriptions of user flows in this document are thus not normative - they are 
+        both a way of breaking down the content in this doc and a way of guiding implementors towards a process that
+      should work for moving accounts.  No shared state or explicit signaling between servers is implied by the references to 
+      "phases" as perceived by the end-user.</p>
+
+      <p>Some of the pieces required to complete this workflow do not need to described as protocol or schema in order to be interoperable.  For example, the user can interact with an ActivityPub server using its Web pages for account management; for these tasks we need to describe what the server ought to be able to do, not how the user can ask it what to do.  This specification uses the language of a <i>user communicating intent to a server</i>, 
+      and whether this intent is communicated via a Web page or some other client<>server protocol is out of scope of this document.</p>
+
+      <p>The server-to-server communications involved in this workflow do need to be reliable (URLs, messages and schemas) in order to be interoperable, so those sections are normative.</p>
+
+    </section>
+
+
+    <section id="sotd">
+      <p>This document is an individual submission to the SocialWeb Incubator Community Group, which has formed a task force to focus on the work of data portability.  Interested parties should join the public-swicg@w3.org mailing list to discuss.</p>
+
+      <p>This document is compatible with the ActivityPub Data Portability document, which describes a way to perform an offline account migration.</p>
+
+    </section>
+
+    <section class="informative">
+      <h2>Approach</h2>
+      <p>The technical approach proposed for LOLA is, at a high level: </p>
+      <ul>
+        <li>Source server advertises an OAuth endpoint for authorizing account portability (this can co-exist with other OAuth endpoints e.g.  for authenticating the user).</li>
+        <li>Destination server initiates OAuth to gain user authorization and give the destination server a secure token for source server access requests</li>
+        <li>Destination server can use the secure token and find the right endpoints to start copying data from the source</li>
+        <li>The focus is on copying current account content (rather than a changelog or delta).  The destination may populate an ActivityPub outbox that mirrors or subsets the account's outbox on the source server.</li>
+        <li>Activity object IDs may be generated in any mechanism the destination server chooses, and old <code>id</code>s can be retained in or outside of objects on the destination server; addressing of objects is out-of-scope at this layer.</li>
+        <li>Destination may also query for additional activities defined in extensions, attachments/media, and extension-specified account metadata such as allow/block/group-membership lists in addition to the AP protocol's core data types</li>
+        <li>Activities with extension-defined privacy or authorization properties MAY be requested and sent, but the authorization behavior and assumptions for such requests and deliveries is out of scope of this specification and should be defined by such extensions</li>
+        <li>Optionally, if the user asks later, the source server can notify follows of the source account that the account has moved and what 3rd party recipients can do with these notifications</li>
+        <li>Optionally, if the user asks later, the source server can redirect requests for content with URLs for the destination server.</li>
+      </ul>
+
+    </section>
+
+    <section class="informative">
+      <h2>Use cases</h2>
+
+
+      <p>The primary user need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation 
+        and defederation decisions.  The connections between servers and the communities on servers form a structure that has 
+        close connections, looser connections, and explicit blocks, allowing many different types of communities to co-exist.  
+        That does put a lot of pressure on users to be able to move their accounts (due to moderation decisions they disagree 
+        with, because of server defederation, or just to move closer to an affinity group).   A user making such an account move 
+        will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and 
+        sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can 
+        provide these choices to users.</p>
+
+      <p>Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved which is useful 
+        for testing of all kinds.  The mechanisms are independent of each other (beyond assuming the account 
+        migration authorization token), thus allowing reuse - e.g. the mechanisms for notify/redirect can also be used after a user 
+        moves to a new location using a different approach.  <p>
+
+      <p>Some use cases are not covered by this approach.  An offline server cannot participate in server-to-server portability mechanisms.  Servers may also be unwilling or unable to communicate directly in any way.  If the unwillingness to communicate is part of ‘defederating’ another server, we recommend that account portability be an exception to the defederation logic, as moving accounts is an important part of helping defederation work well for more people.</p>
+
+      <p>The <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/73cd/fep-73cd.md">Migration User Stories</a> FEP has a number of use cases that can be solved with LOLA, as well as some that can't.  Those intended to be addressed: </p>
+
+      <ul>
+        <li>1A Account-level redirect: Yes</li>
+        <li>1B Activity-level redirect to a home page: Yes if source can manage it</li>
+        <li>1C Activity-level redirect to same content: Possibly - needs more discussion</li>
+        <li>1D Partial move account (split account): Not in scope.</li>
+        <li>1E Block list move: Yes - via mechanisms for extension-defined activities and objects</li>
+        <li>1F Server-level block list move: Possibly - needs more discussion</li>
+        <li>2. Move between defederated servers:  This use case is peculiarly constrained to “refuses connections
+          from [a destination server] altogether”.  Instead, how about a source server that blocks another server’s 
+          content, can still allow a user to authorize that server as a destination for account migration requests 
+          (which does NOT involve receiving content).  If we make that assumption, then the rest of the use case is
+          addressed.</li>
+        <li>3, 4, 5, 6 and 7A/B involve import/export. Export/import is out of scope of this exact document but
+          should benefit from some of the same mechanisms referenced in a separate document. </li>
+      </ul>
+    </section>
+    <section class="informative">
+      <h2>Overview</h2>
+
+      <p>This overview covers high-level flow, trust decisions, and some architectural decision discussion.</p>
+
+      <h3>Account migration interactions, high-level</h3>
+      
+      <p>The interactions described in this document can be separated into three informal phases.</p>
+      <ul>
+        <li><b>Discovery and authentication</b></li>
+        <li><b>Copying content</b></li>
+        <li><b>Notifications and redirects (optional followup)</b></li>
+      </ul>
+
+      <p>In the first phase, <b>discovery and authorization</b> features allow the destination server to find out
+        where to guide the user to authorize the destination server to the source server for an account migration.</p>
+      <ol>
+        <li>A user typically forms a desire to move to a specific ActivityPub server, the destination. They set up 
+          an account there. The name or identity (e.g email address or login) of the account may have no relationship 
+        to their old account.</li>
+        <li>The destination server offers some way (out of scope) for the user to communicate intent for
+           data to be copied in from another account.</li>
+        <li>The user communicates the source for this data to be copied by providing a ActivityPub Actor ID or server domain.</li>
+        <li>The destination server performs interoperability discovery to checks whether this specification is supported 
+          and what URL to use to initiate authorization. If successful, it finds an OAuth endpoint that has 
+          been advertised to have the appropriate scope for account migration.</li>
+        <li>The destination server redirects the user’s browser to this OAuth endpoint, with information to tell the 
+          source server which access scope it will need.</li>
+        <li>The user, assuming approval, shows their own authorization and authorizes the destination server to the 
+          source server.</li>
+        <li>The source server redirects the user to the destination server with an access token.</li>
+      </ol>
+ 
+      <p>Note that the mechanism for the user communicating intent to the destination server is not specified in detail 
+        in this document.  It could be Web forms that do not need to be standardized in protocol documents, or client/server 
+        protocol mechanisms that are out of scope of this specification.  </p>
+
+      <p>In the second phase, <b>copying content</b>, the destination uses its new access token in requests to the
+        source server to authenticate its requests.  The destination makes requests to existing and new data endpoints
+        to fetch data and content.  Because it is using an access token, the destination server is able to access private posts and metadata that are not normally accessible to 3rd party requesters</p> 
+
+      <ul>
+        <li>Content can be copied from a new content collection endpoint.</li>
+        <li>Content objects include likes and faves data. </li>
+        <li>Allow and block lists are downloaded from a new endpoint.</li>
+        <li>Group membership data is downloaded from a new endpoint.</li>
+        <li>Activities in the outbox that are not content objects (Likes, reads, views) can be copied from the outbox.</li>
+      </ul>
+
+      <p>The final phase, <b>notifications and redirects followup</b>, happens asynchronously.  </p>
+      <ul>
+        <li>We assume the user is notified by the destination server of a completed copy and its status via 
+          communication channels already set up to grant the user an account on that server.</li>
+        <li>The user may interact with the destination server to give additional direction for the disposition of the
+        copied content items.</li>
+        <li>The user may visit the account pages of the source server to tell it to redirect new incoming requests.</li>
+        <li>The user may ask the source server to send notifications to followers of a change in location.</li>
+        <li>The user may request the source server to put the original account into a different state or mode, such as a
+        redirect-only state, delete data, forbid logins etc.</li>
+      </ul>
+
+      <p>In this document, the interoperability of redirects and notifications are considered, but the way the user 
+      communicates their intent to setup a redirect is out of scope. </p>
+
+
+      <h3>Trust decisions</h3>
+
+      <p>The interactions above assumed a number of trust decisions happening invisibly.  Let's expose those and show
+        how they can be made explicitly, even though decisions are probably enacted via automated moderation, manual
+        moderation, or account management mechanisms, rather than via standardized protocol.  We encourage
+        implementations to consider these trust decision-making points and build in appropriate notifications and
+        confirmations to users or admins.
+      </p>
+
+      <p>Making these trust decisions, even when preventing a transfer, does not necessarily mean that the server is
+        failing to be compliant with interoperability standards.  Interoperability does need to be considered when
+        implementing trust decision points, however.
+      </p>
+
+      <h4>Destination approves copy from source</h4>
+
+      <p>The destination server’s administrators may need to make a trust decision before allowing the bulk content
+        to be copied over. 
+      </p>
+
+      <p>
+        Receiving a large amount of content can introduce risks of harmful content.  An administrator may need to 
+        approve a request to migrate an account.    This administrative choice can be made based on trusting the 
+        source server (reputations are nuanced in the Fediverse) or based on trusting the user requesting the account
+        migration.  Some approvals might be made automatically (e.g. from any server already in an allow list) and 
+        others might involve notifications and review.  
+      </p>
+
+      <p>
+        Pre-approval could also be built into account approval flow - for example, an implementation could add a field
+        to an account application form to list the account(s) that a new account would migrate older content from.  If 
+        the user’s new account is approved, the user would have to return to the new server to complete the 
+        authorization flow to the source server.
+      </p>
+
+      <h4>Copied content may undergo moderation.</h4>
+
+      <p>
+        This specification emphatically allows automated or manual moderation processes. A server receiving data may
+        put some or all posts into quarantine, flag or hide some content, or reject the new account data once it has 
+        been reviewed asynchronously. 
+      </p>
+
+      <p>
+        There are a few “good-citizen”-type implementation considerations when moderating content.  Since the user
+        may delete/disable their original account in communications directly with the source server, it would surely
+        be useful for them to know whether all of their content had been accepted on the destination before they do 
+        that.  We don’t make any recommendations for implementations how to do this, as many options are available.
+      </p>
+
+      <h4>Source approves sending to destination</h4>
+
+      <p>
+        Sometimes the server sending information has a trust decision to make.  ActivityPub might not always be used
+        for syndicating public data, but can also be used for private and even sensitive data.  When the destination
+        server sends the user to an OAuth UX at the source server, the source server will have to decide whether and
+        how to trust the destination.
+      </p>  
+
+      <h4>Content can be filtered at the source</h4>
+
+      <p>
+        Our default assumption is that authorizing account portability access means that the source server will allow an entire account to be copied for account migration, but this is not always going to be the case.  A source server MAY provide filters or additional scoping as an advanced feature to users.    A server might offer to filter or restrict based on permissions, tags, collections or types. We accept this reality because limits can be applied in ways that aid interoperability, privacy, or other user goals. Ideally, the decision to filter or limit data transfer is a decision that the user makes, not one that the source server imposes on the user, because overprotective filtering can result in content lock-in.   </p>
+
+        <p>Illustrative examples</p>
+        <ul>
+          <li>A server offering both private note-taking and public note-sharing may offer the user a choice to restrict 
+            account access only to public notes.  If the user's intent is to move their public notes to a popular 
+            public-content-only server, then this option is far better for the user than to copy private notes and make 
+            them public.  In this scenario, the user's privacy benefits from the server offering a filtering choice.</li>
+          <li>A user discovers that their text posts transfer beautifully but their tens of thousands of "listen" activity 
+            objects are not well understood and create garbage objects at the destination.  The user may decide to apply a 
+            filter on the source server when the user authorizes data transfer, to exclude "listen" activity objects, and 
+            separately archive these objects somewhere. In this scenario, interoperability is aided by having a 
+            high-functionality source server that can limit data accessible to a server that is in some ways less capable.</li>
+        </ul>
+
+
+      <h3>Approaches for moving followers and following</h3>
+
+      <p>
+        The approaches suggested here for moving followers and following lists are entirely different. 
+      </p>
+
+      <p>
+        The user moving their accounts can choose to follow all the same actors in the new location that they followed 
+        in the old location, although there’s no guarantee that all those Follow activities will be successful.  A 
+        destination server can copy the list of accounts to follow and automate this, and they are all brand new Follow 
+        activities created in the new location.  They are not old Follow activities and should not have older timestamps 
+        or breadcrumbs.
+      </p>
+
+      <p>
+        Accounts that follow a moved account might get a notification, via a Move activity, that they have an opportunity
+        to follow a new Actor and stop following the old. They might not get the notification, might ignore it, or might 
+        fail to follow the new account. In any case, any new successful Follow activities from previous followers are 
+        brand-new and have no visible or necessary relationship to old Follow activities.
+      </p>
+
+      <p>
+        Timing here is interesting and difficult.  A user might want to set up a new account, check it all out, copy 
+        content over, check all that out, etc.  After the user is satisfied with the move so far they might wish to follow 
+        the same accounts they used to, check THAT out, and finally to advertise the move and disable the old account.  
+        For this reason as well as for flexibility in other use cases, it would be a good idea for destination servers 
+        that choose to implement this entire specification to do so in two parts.  For example, a Web page with a button 
+        to copy content from another account, and a separate button to follow the same accounts as the other account, 
+        would allow the user to follow these steps at leisure or choose to do just the one or the other.  
+      </p>
+
+      <h3>Model for moving shares and likes</h3>
+
+      <p> Moving shares and likes can be done with a number of approaches that differ greatly in who does the work and what 
+        the impact is.  This section explores the decision-making that led to the proposals made in this specification.  When 
+        this specification is closer to being finalized, it might be better to limit this section to an illustrative example, 
+        cutting some of the decision-making tradeoffs and justifications.</p>
+      <p>
+        In the ActivityPub specification, there is a user story with examples, summarized as follows (users renamed to Aurora, Brock and Cherry):
+      </p>
+
+      <ul>
+        <li>Aurora posts an article to her outbox which is delivered to her followers as well as to Brock explicitly as a named recipient. Cherry is one of the followers who receives this.</li>
+        <li>Cherry posts a ‘like’ to his outbox, which is addressed to (or cc) Aurora, her followers and Brock. </li>
+        <li>Upon receiving the notification from Cherry’s server, Aurora’s server saves a reference to the like object 
+          in the likes collection on the article.</li>
+      </ul>
+
+      <p>After the like/likes is propagated this way, there are several things that can happen.</p>
+
+      <ul>
+        <li>Aurora’s Activity can move and change object IDs.  This can happen with a domain name change, a user request to 
+          change the name string that is often part of an Actor ID, or with server-to-server data portability that already 
+          exists (between instances of the same software, for example).</li>
+        <li>Aurora’s Activity can also just disappear.</li>
+        <li>The “Like” in Cherry’s outbox can move and change object IDs, for all the same reasons that Aurora’s activity can.  It can also disappear.</li>
+      </ul>
+
+      <p>
+        Presently, in these cases, what should happen is not standardized [I think].  If a Person update happens for 
+        Aurora with a “movedTo” value, receiving servers could go looking for any reference including that Actor, and update their follows.
+      </p>
+
+      <ol>
+        <li>
+          Knowing that Aurora’s Activity also moved,  Cherry's server could <b>rewrite</b> his “Like” activity to point to the new location. Presumably if this path is chosen, Cherry's server would do this with all users and all Likes that pointed to any moved thing.
+        </li>
+        <li>
+          Aurora’s Activity could move, and Cherry's server could learn about the move and know that it has Like activities referencing the original article, and nevertheless <b>leave them alone</b>.  They already propagated, their purpose is served.
+        </li>
+      </ol>
+
+      <p>
+        Existing servers seem to follow the “<b>leave them alone</b>” model rather than the <b>“rewrite”</b> model.  The way items propagate initially doesn’t have to define the way they are maintained.  In any case, trying to follow the rewrite model would sure involve some misses, failing back to the leave them alone model.
+      </p>
+
+      <p>
+        For ease of implementation, we lean towards assuming the “leave them alone” model.  Some of the reasons why:
+      </p>
+
+      <ul>
+        <li>How far should change propagation go? If Aurora moves her article and Cherry's Like gets updated does that propagate to Aurora’s subscribers? Do they get notified? </li>
+        <li>Where should change propagation go to?  Original follower list at the time the item was sent out? Aurora’s follower list today? 
+        </li>
+        <li>A rewrite model, if it were to be relied upon, would require many OTHER servers to participate in a data transfer specification, not just the two servers directly involved.  This increases the difficulty of adoption.
+        </li>
+        <li>
+          Since Activities/Likes can be disconnected in other ways, supporting breadcrumbs seems more useful than trying to achieve perfect rewriting.
+        </li>
+      </ul>
+
+      <p>
+        In addition to assuming that 3rd party servers leave their likes alone in many cases, this specification recommends that the destination server add breadcrumbs to Activity and Like objects to record their prior identities. This is beneficial in showing a nuanced view of older data.  If necessary, a server interested in validating a collection of “Likes” submitted to it, can mostly do so (except for accounts that have disappeared) if the object that the collection of “Likes” it is on maintains a history of past object IDs.  Note that this still ALLOWS other servers to fix up their Likes but they can do so immediately, later, or never.
+      </p>
+
+      <h3>Data Degradation</h3>
+        <p>Any account migration bears a risk of data loss or degradation.  A server cannot reasonably accept content it does not know how to store or present.  A roundtrip can result in data that is not in all ways, or even in important ways, identical to the data before it was migrated and migrated back.  This specification is intended to facilitate best-effort account migration rather than perfect duplication, with the philosophy that the perfect can be the enemy of the good.</p>
+
+        <p>Some consequences of this philosophy:</p>
+
+        <ul>
+          <li>Account migration might not be the best tool for users to do account backups.  It might be better than no tool, but trying to migrate data to another live location involves enough different choices than account backup, that it is likely that the result would be some data loss.  Note, for example, that a destination server that supports fewer features might not even request some kinds of objects from the source server, therefore those objects would not get copied during an account portability operation.</li>
+          <li>The decision to recommend not migrating Create, Update, Delete activities is the result of considering tradeoffs between possible errors trying to do too-high-fidelity a copy, rather than sticking to the basics (not to mention, the greater likelihood that something simpler is more likely to be implemented).
+          </li>
+          <li>The source and destination server are both explicitly allowed to deviate from the default assumptions in many cases listed in this spec.  Strict compatibility with a strictly limiting spec would degrade the outcome in other ways, e.g. by requiring a server that doesn't support Markdown to host Markdown-formatted content rather than make a better decision.</li>
+        </ul>
+
+
+    </section>
+
+
+    <section>
+
+
+      <h2>Discovery </h2>
+
+      <p>The goal of discovery is that once a user communciates their intent to a destination server to copy content from a source server, the destination server can discover how to get account access authorization and what features are available.</p>
+
+      <p>While communicating their intent to copy account data over, the user may provide a source server domain or a full Actor ID on the source server. Either a domain or Actor ID will be enough to contact the source server.  If only the domain is provided, the Actor ID will be learned via the OAuth interaction. If the Actor ID is provided, OAuth is still required to authorize access.</p>
+
+      <h3>OAuth Endpoint in Authorization Server Metadata (.well-known)</h3>
+      <p>ActivityPub servers supporting this specification SHOULD include
+   the URL of their portability authorization endpoint in their
+   authorization server metadata document [RFC8414] using the
+   <b>activitypub_account_portability</b> parameter.</p>
+
+      <p>This parameter name will need to be registered in the IANA "OAuth
+   Authorization Server Metadata" registry established by [RFC8414].</p>
+
+      <h3>OAuth Endpoint Discovery via Actor object</h3>
+
+      <p>ActivityPub servers supporting this specification MUST provide the URL for their portability authorization endpoint in Actor objects, using the "accountPortabilityOauth" field.</p>
+
+        <p>Example Actor object</p>
+
+      <pre>
+  {
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://purl.archive.org/socialweb/blocked"
+    ],
+    "id": "https://oakfrost.example.com/brock",
+    "type": "Person",
+    "name": "Brock Oakfrost",
+    "accountPortabilityOauth": "https://example.com/oauth2/porting-access-endpoint",
+    "inbox": "https://oakfrost.example.com/brock/inbox"
+  }
+      </pre>
+
+      <h3>Role of destination server in discovery</h3>
+
+      <p>If the destination server finds the account portability OAuth endpoint via the [RFC8414] ".well-known" approach, it MUST gain authorization and use its account migration authorization token when doing feature discovery.   </p>
+
+      <p>If the destination server requests the Actor object before gaining authorization, it MUST request the Actor object again using its account migration authorization token to do feature discovery.</p>
+
+      <h3>Feature Discovery</h3>
+
+      <p>Feature discovery is bootstrapped by OAuth authorization, in case the source server does not want to advertise all features to all requestors of the Actor object.</p>
+
+      <p>The destination server MUST  use the account migration authorization token when requesting the Actor object to find out which URLs the source server offers to access the data that will be copied during an account migration.  The source server MAY EITHER verify the authorization token and return the discovery URLs, OR skip verifying the authorization token and always return the discovery URLs.
+      </p>
+
+      <p>Example Actor object in response with account migration authorization token included in request</p>
+
+      <pre>
+{
+    "@context": [
+        "https://www.w3.org/ns/activitystreams",
+        "https://purl.archive.org/socialweb/blocked"
+    ],
+    "id": "https://oakfrost.example.com/brock",
+    "type": "Person",
+    "name": "Brock Oakfrost",
+    "accountPortabilityOauth": "https://example.com/oauth2/porting-access-endpoint",
+    "inbox": "https://oakfrost.example.com/brock/inbox",
+    "outbox": "https://oakfrost.example.com/brock/outbox",
+    "content": "https://oakfrost.example.com/brock/content",
+    "following": "https://oakfrost.example.com/brock/following",
+    "followers": "https://oakfrost.example.com/brock/followers",
+    "liked": "https://oakfrost.example.com/brock/liked",
+    "blocked": "https://oakfrost.example.com/brock/blocked",
+    "migration": "https://oakfrost.example.com/brock/outbox"
+}
+</pre>
+
+    <p>Notes</p>
+      <ul>
+        <li>
+          Actor names (not only the 'name' property but also the portion of the Actor ID that contains the name if applicable) may differ at the source and destination, and may be different than the names used as user identifiers by either system.  A user with an account identity such as “Alice” may transfer the “DeepThoughts” actor data on server A “@deepthoughts@a.example” to a “PhilosophicalMusings” actor owned by the account “AMuse” “@philomuse@b.example”, as long as she can log into both accounts and has permissions to authorize the transfer on both ends.
+        </li>
+        <li>
+          Nomadic IDs [ref to add], on the other hand, may allow an actor’s identity to be identical across servers.  <b>Open Issue</b>: How do servers supporting nomadic IDs transfer such IDs? how independent of account content migration is it?
+        </li>
+        <li>
+          URL discovery allows the account migration “outbox” to be different from the normal outbox if the source server prefers to implement it at a different URL, but it can also be the same URL.  There may be a number of differences between migration outbox and regular outbox, caused by permissions settings, filtering unnecessary items, filters explicitly chosen by the user, or other reasons we can't foresee now.  That said, a simple implementation can probably be successful using the same URL for both. 
+        </li>
+      </ul>
+
+
+    </section>
+
+    <section>
+
+      <h2>Authorization</h2>
+
+      <p>
+        This specification is compatible with and independent of the OAuth 2.0 Profile for the ActivityPub API specification.   A server would be able to implement this specification and yet not use OAuth for user authentication, although the author thinks it would be best to support OAuth for both.
+      </p>
+
+      <p>Servers supporting this specification MUST support this OAuth mechanism to grant authorization.  However, a destination server could acquire an account migration authorization token using some mechanism not defined in this specification, and it might be possible use that in the requests involved in copying data (next phase).  </p>
+
+      <p>The OAuth interaction defined in this specification takes place over HTTP, with messages passing between the destination server and a user's Web browser, between the user's Web browser and the source server, and finally between the destination server and source server.  The interaction can involve multiple back-and-forths between the user and the source server to re-authenticate, or to make choices relative to the access that could be granted.</p>
+
+      <p>The Oauth endpoint advertised using the two discovery mechanisms above MUST support the 'activitypub_account_portability' scope. This scope MUST be limited to an account - if there is more than one account on the source server, the source server MUST NOT allow access to any other accounts than the one granted, by requestors using the account migration authorization token.</p>
+
+      <p>
+        Additional scopes for related use cases (e.g. backup, mirroring) can be defined in separate specifications. 
+      </p>
+
+
+      <h3>Destination directs to source server</h3>
+
+      <p>The destination server constructs a URL to direct the user's Web browser with the following parameters:</p>
+      <ul>
+        <li>response_type</li>
+        <li>redirect_uri</li>
+        <li>scope=<b>activitypub_account_portability</b></li>
+        <li>state - a random string verified by destination later</li>
+      </ul>
+
+
+      <h3>Source server verifies </h3>
+      <p>Upon receiving the Oauth authorization request, the source server has a number of things to verify or decide.</p>
+
+      <ul>
+        <li>Is the session over which this request is made authenticated? If not, the source server may need to authenticate the user and then resume.  A source server MAY request re-authentication at this point because account portability access can provide access to sensitive data.</li>
+        <li>Should it allow this request for the given authenticated user?  Although of course the source server MAY reject this request if a user has been suspended in some way, there are good arguments for allowing suspended users to still migrate their content to other servers. There are also reasons to block this, so the source server MAY block the user from granting portability access.</li>
+        <li>Should the source server allow this request for the given requesting server? It may be natural to consult a list of defederated servers while making this decision, but there are good arguments to allow a defederated server to gain access to the data of a user who really wants to move to that server.  There are also good arguments NOT to, so the source server MAY block the access request based on which destination server is asking.  </li> 
+        <li>Can the source server verify that the redirect_uri is legitimately to a known and trusted destination server? It may not be possible to verify this by comparing the redirect_uri root to a list of allowed federated servers, due to the possibilities for different software to run on one host.  This is still an <b>open issue</b> and we should discuss how the source server can validate the destination server here.</li>
+        <li>Are there any additional options it wants to offer the user?  For example, the source server could offer to filter private objects out of the data shared with the destination server.  If the user chooses to filter or limit scope, the source server MUST keep track of this when evaluating access requests using the account migration authorization token.</li>
+      </ul>
+
+      <h3>Source server response</h3>
+      <p>If authorization is approved, the source server redirects the user back to the destination server with an authorization code with parameters:</p>
+      <ul>
+        <li>code - the authorization code</li>
+        <li>state - the same random string passed by destination server</li>
+        <li>activitypub_actor - the ActivityPub Actor ID associated with the one account that access is granted to.</li>
+      </ul>
+
+
+      <p>It is possible for the user to provide one Actor ID to the destination server, and then for the destination server to receive a different Actor ID in this response.  The destination server MAY confirm this with the user but MUST use the Actor ID provided with the authorization code rather than the original one the user communicated.</p>
+
+      <h3>Obtaining access token</h3>
+      <p>An access token is finally obtained by destination server asking the source server as per 4.1.3 and 4.1.4 in [RFC6749]. This is the token used in the HTTP Authorization header as described in section 7.1 of RFC6749.  This header MUST be included in feature discovery and data access requests.</p>
+
+
+    </section>
+
+    <section>
+      <h2>Copying Data</h2>
+      <p>The destination MUST copy data using HTTPS.  It MUST provide the account migration authorization token in requests even when it believes the requests are for public content, in the following way </p>
+
+      <code>
+        Authorization: Bearer &lt;access_token&gt; 
+      </code>
+
+      <p>
+        The source server SHOULD enable copying data even if the account has been suspended in some way.  For example, even if the source server is not responding to general requests for posts for a suspended account, it should treat account migration requests with the account migration authorization token as bypassing the suspension. 
+      </p>
+
+      <p>The source server MAY rate limit requests by sending a 429 Too Many Requests response as defined in [rfc6585#section-4], with a Retry-After header, in which case the destination server SHOULD slow its roll.</p>
+
+      <h3>Migration Outbox</h3>
+      <p>The destination server MUST use the migration outbox in lieu of the regular outbox if a migration outbox URL is different.  This allows the source server some flexibility that may be important, in how it fetches and presents data for account migration differently than for regular use.</p>
+
+      <h3>Content Collection</h3>
+
+      <p>
+        The source server should include these object types in the content collection:
+      </p>
+      <ul>
+        <li>
+          Note and other Activity types that have content.
+        </li>
+        <li>
+          Media objects that are hosted by the source server - if it is a resource that would go away if the source server were to receive an account deletion request, then it should be here for copying over.
+        </li>
+      </ul>
+
+      <p>
+        The source server MUST NOT include content wrapper or content modification activities in the content collection, including Create, Update and Delete activities.  The end result of creates, updates and deletes is what we're aiming to see here.
+      </p>
+
+      <p>
+        The source server should include for each object type as appropriate:
+      </p>
+      <ul>
+        <li>
+          If available, the ‘source’ of the activity as well as the content 
+        </li>
+        <li>
+          Destinations, inReplyTo, URL, id, and other attributes
+        </li>
+        <li>
+          All other access control or privilege metadata
+        </li>
+        <li>Breadcrumbs from prior moves
+        </li>
+      </ul>
+
+
+      <p>
+        If the source server has has ‘likes’ information on objects, it should include that collection in each object as 
+        per <a href="https://www.w3.org/TR/activitypub/#likes">https://www.w3.org/TR/activitypub/#likes</a>. If the source server 
+        has ‘shares’ information, that is included as per 
+        <a href="https://www.w3.org/TR/activitypub/#shares">https://www.w3.org/TR/activitypub/#shares</a>.  The source server 
+        MAY limit the size of particularly large likes and shares collections, which would mean that only some likes and shares 
+        would be copied if the destination tries to copy them at all; however, this behavior is NOT RECOMMENDED until there is 
+        some specified way to show that results are limited or a way to get further results.
+      </p>
+
+      <p>
+        Open Issues:  Is there a way to negotiate what extended features are recognized and whether the source should downgrade structured info?  Is there already a way to request posts in one format or another? 
+      </p>
+
+      <h3>Actor information</h3>
+
+      <p>
+        The <b>Following</b> collection as per 
+        <a href="https://www.w3.org/TR/activitypub/#following">https://www.w3.org/TR/activitypub/#following</a> SHOULD be 
+        provided on the Actor object when accessed with the account migration authorization token.  
+      </p>
+
+      <p>
+        If the server does blocking, the personal block list SHOULD be fetchable at the URL advertised on the Actor object, as per <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/c648/fep-c648.md">https://codeberg.org/fediverse/fep/src/branch/main/fep/c648/fep-c648.md</a>
+      </p>
+
+      <p>
+        Destinations are not required to port and reconstruct Following and Blocked data, as it may not be relevant depending on the use case. If the destination does port and reconstruct this data, it’s probably good to offer it separately from copying content. 
+      </p>
+
+      <p>
+        The destination SHOULD copy the “Liked” collection on the Actor, which the source SHOULD provide if there is an account migration authorization token.  No changes should need to be made and dates and references SHOULD not be made.
+      </p>
+
+      <p>
+        A destination server MAY copy additional Actor information if it’s not overwriting choices already made by the user.  For example, if a new account on a destination does not have an avatar, and the user then chooses to migrate content or follows from another location that does have an avatar, it would be great to copy the avatar too.
+      </p>
+
+      <h3>Other Collections</h3>
+
+      <p>
+        Generally, other collections MAY be made available to destination servers presenting an account migration authorization 
+        token, and SHOULD be made available in a similar way, with the collection URL available in the Actor object.  The 
+        destination server then gets to decide if it knows what to do with a given collection.  For example, a specification 
+        for group membership (which would be great...) can define a collection with a URL listed on the Actor object, and 
+        state what the behavior should be during account migration.  Without knowing exactly what the data is in advance, 
+        it's hard to make assumptions about behavior.  
+      </p>
+
+      <h3>Saving “new” copied object</h3>
+
+      <h4>Types</h4>
+
+      <p>
+        Note objects should be presented directly in the destination outbox after migration.  TBD - we need to confirm if this avoids triggering UX notifications on 3rd party servers.
+      </p>
+
+      <h4>Object IDs</h4>
+
+      <p>
+        As the destination server copies Activity and Like objects, it MUST create or choose a new context-appropriate Object ID for each object.  Destination servers that use numeric IDs or GUIDs can generate them in a way that seems appropriate.  Destination servers that use dates or slugs in object IDs can pull information necessary to create those object IDs out of object metadata.  Although the destination server CAN use part of the object's prior ID it doesn't have to, and since it is making a copy of an object that still exists elsewhere it can't use the exact same object ID. 
+      </p>
+
+      <h4>Actor ID</h4>
+
+      <p>
+        The actor ID of an object MAY change or be kept the same.  The decision to change the actor ID of the object can depend 
+        on context.
+      </p>
+
+      <ul><li> In the default personal account migration use case, since the new actor on the destination server “owns” the 
+          content, the actor ID of objects SHOULD be the new actor ID. </li>
+          <li>A hypothetical use case involving nomadic IDs would clearly not change the object's Actor ID if the Actor ID 
+            remains the same.</li>
+        <li> In a group use case, such as using account portability to merge individual contributions into a group blog, the 
+          destination MAY keep the original actor.  In these cases, it's important for the destination server to understand the 
+          user intent and make sure that can be communicated.</li> 
+      </ul>
+      
+      <h4>Adding to Outbox</h4>
+
+      <p>A destination server MAY post some or all migrated content to the outbox.  This specification defines a new Activity type, "Copy", to help 3rd parties make decisions about whether to notify or take other action based on seeing the activity. For 3rd party backward compatibility, the "Create" Activity SHOULD be used along with the "Copy" activity:
+
+      <pre>
+  "type": ["Create", "Copy"]
+      </pre>
+
+      <h4>Copying “Likes”</h4>
+      <p>
+        If the destination is offering an account migration affordance and not some other use case, the destination SHOULD copy the “Likes” collection on the object. No changes should need to be made.  
+      </p>
+ 
+      <h4>Copying “replies” and “inReplyTo” </h4>
+      <p>
+        The server SHOULD copy ‘replies’ collection and ‘inReplyTo’ values (specified in Activity Vocabulary).  
+      </p>
+      
+      <h4>Adding Breadcrumbs</h4>
+      
+      <p>
+        As the destination server copies Activity and Like objects, it SHOULD add breadcrumbs.  It SHOULD preserve the existing breadcrumbs because it’s nice to do so.  Breadcrumbs should be pushed on the top (or beginning) of a most-recently-first list in the ‘previously’ property.  The 'previously' attribute is defined in this specification as a multi-valued property, as follows: 
+      </p>
+
+      <table>
+        <tr><td>URI:</td><td>TBD</td></tr>
+        <tr><td>Notes:</td><td>One or more actor/ID pairs</td></tr>
+        <tr><td>Domain:</td><td>Activity</td></tr>
+        <tr><td>Range:</td><td>Object | Link</td></tr>
+      </table>
+
+      <p>Example:</p>
+      <pre>
+"type": "Article",
+"id": "https://thirdhome.example/meadowvine/posts/xyz",
+"previously": [
+  { 
+    "actor": "https://newsite.example.org/aurora/",
+    "id": "https://newsite.example.org/aurora/items/02751cab-..."
+  },
+  { 
+    "actor": "https://lemongrove.example.co.uk",
+    "id": "https://lemongrove.example.co.uk/2016/05/minimal-activitypub"
+  }
+]
+      </pre>
+      <p>The "actor" value SHOULD be included, because there is no guarantee that a 3rd party can derive the actor value from 
+        an "id" value. The "actor" value is needed in order to validate the previous "id" value before trusting it.  Because
+        the destination server simply attests to the "previously" value, it cannot be entirely trusted without 
+        cryptographic and/or third-party verification.  See the Third-Party section for requirements for that verification. 
+      </p>
+
+      <p><b>Open Issue:</b> More discussion is needed for this proposal to see if it's worthwhile.  The whole point of 
+        breadcrumbs is to "solve" the problem of objects that have been liked moving to a new location, while balancing 
+        tradeoffs such as not overwhelming a network through massive amounts of activity triggered by an Actor's move.  
+        To expand on the problem with a few use cases::
+      </p>
+
+      <ul>
+        <li>Cherry liked Aurora's article in its original location.  When Aurora's article moves, and Cherry sees it in a new 
+          location, it would be nice for Cherry to see that it was already "liked" and not be tempted to "like" it again.</li>
+        <li>Cherry's server hides unwanted content based on a list of blocked Actors, so it would be nice if it could
+          see content that had been moved from blocked Actors and continue to hide this content.</li>
+        <li>That said, it is possible for an ActivityPub server to host false breadcrumbs, so a defensive use case would be that:
+          even when malicious user 'Voldemort' posts an article with a "previously" property including the id of Aurora's article, 
+          Cherry can tell that he did NOT actually "like" this article.
+        </li>
+        <li>Finally, it would be nice if Cherry can reliably tell which articles he already liked even if Aurora's 
+        original server is no longer accessible and even if Voldemort is providing false breadcrumbs.</li>
+      </ul>
+
+      <p>Breadcrumbs on the destination solve the first three use cases in cases where Aurora's original Actor's movedTo 
+        value can be verified. Good caching of moved Actor information could solve the last use case a lot of the time, 
+        but is not guaranteed.  Other solutions could be designed, such as client-side signing or witness services. 
+        In the fourth use case, when an ActivityPub agent wants to use information in breadcrumbs but cannot validate them,
+        safe behavior may depend on why it wants to validate the breadcrumb.
+      </p>
+
+      <p>
+
+        NOTE: Showing prior IDs of objects seems like a useful feature in general.  Servers implementing this spec or just this 
+        feature MAY utilize breadcrumbs to show object ID changes due to domain name changes, Actor name changes, and other ways 
+        an object may change after creation, as well as due to account moves.  
+      </p>
+
+
+      <h4>Keeping historical values</h4>
+
+      <p>
+        The destination SHOULD keep the ‘to’ value of an object as-is.  Although the ‘to’ list may no longer be in existence, it is an accurate name for where it was originally distributed. This ought to be consistent with the way current servers maintain the ‘to’ list: even when an Activity is not moved, after time its ‘to’ list may reference accounts or collections that no longer exist, and that’s OK. 
+      </p>
+
+      <p>
+        The destination SHOULD keep the ‘published’ timestamp rather than rewrite it. It helps consistency to understand that at the time it was published originally, the ‘to’ list had a certain meaning.  
+      </p>
+
+      <p>
+        Most other values not specified here MAY change. The 'content' or 'type' values MAY change.  The destination is expected 
+        to do best-effort under the philosophy described in the Approach section.
+      </p>
+
+      <p>Supporting examples</p>
+      <ul>
+        <li>A destination server might only allow posting plaintext and HTML content values for the content of posts. However, 
+          if it can understand a Markdown-formatted content value, it could translate that into plaintext or HTML.</li>
+        <li>A destination might translate activity types like "Article" into "Note" if it only supports Note.</li>
+      </ul>
+
+
+      <h4>Keeping unrecognized attributes</h4>
+
+      <p>
+        Unrecognized attributes in objects should probably not be kept.  
+      </p>
+
+      <h4>Example Copied Object</h4>
+
+      <p>
+        An activity originating from a moved account with a new Object ID and breadcrumbs may look like this when fetched from a new content collection location (without an outbox Activity wrapper).  Note the ID is changed and is dereferencable at the new site, but the ‘to’ and ‘published’ values are historical.
+      </p>
+
+      <pre>
+
+{
+  "@context": ["https://www.w3.org/ns/activitystreams",
+               {"@language": "en"}],
+  "id": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
+  "previously": [
+    { "actor": "https://lemongrove.example.co.uk",
+      "id": "https://lemongrove.example.co.uk/2016/05/minimal-activitypub"
+    }
+  ],
+  "attributedTo": "https://newsite.example.org/aurora/"
+  "to": ["https://lemongrove.example.co.uk/followers"],
+  "type": "Article",
+  "published": "2014-12-12T12:12:12Z",
+  "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
+}
+      </pre>
+
+      <h4>Example Copied Object in Outbox</h4>
+
+      <p>If the destination server chooses to place Create activities in the new outbox for some or all content items:</p>
+
+      <pre>
+{
+  "@context": ["https://www.w3.org/ns/activitystreams",
+  "actor": "https://newsite.example.org/aurora",
+  "id": "https://newsite.example.org/aurora/items/e2495916-877c-4428-8ada-c199508ad855",
+  "to": [...],
+  "type": ["Copy", "Create"]
+
+  {
+    "@context": ["https://www.w3.org/ns/activitystreams",
+                 {"@language": "en"}],
+    "id": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
+    "previously": ["https://lemongrove.example.co.uk/2016/05/minimal-activitypub"],
+    "attributedTo": "https://newsite.example.org/aurora/"
+    "to": ["https://lemongrove.example.co.uk/followers"],
+    "type": "Article",
+    "published": "2014-12-12T12:12:12Z",
+    "content": "&lt;div&gt;Article is in here... &lt;/div&gt;",
+  }
+}
+      </pre>
+
+      <p>A destination server might also reference the copied article rather than wrap it:</p>
+
+      <pre>
+{
+  "@context": ["https://www.w3.org/ns/activitystreams",
+  "actor": "https://newsite.example.org/aurora",
+  "id": "https://newsite.example.org/aurora/items/e2495916-877c-4428-8ada-c199508ad855",
+  "to": [...],
+  "type": ["Copy", "Create"]
+  "object": "https://newsite.example.org/aurora/items/02751cab-7dd7-416b-905b-...",
+  }
+}
+      </pre>
+
+      <h4>Example Copied Like</h4>
+
+      <p>
+        A like originating from a moved account may look like this when fetched - note the actor and ID are both dereferenceable for the new server, and the ‘previously’ value shows older IDs.  Note also that the Like has some old and possibly obsolete 'to' addresses.  The Like was originally distributed to Cherry's followers when Cherry was on mistywing.example.org, not to Cherry's followers at newserver.example.org, and the 'to' addresses do not have to be rewritten to try to translate to different follower lists at different locations.  
+      </p>
+      <pre>
+
+{
+  "@context": ["https://www.w3.org/ns/activitystreams",
+               {"@language": "en"}],
+  "type": "Like",
+  "actor": "https://newserver.example.org/cherry/",
+  "id": "https://newserver.example.org/cherry/like/1972"
+  "previously": ["https://mistywing.example.org/cherry/like/228"]
+  "name": "Cherry liked 'Minimal ActivityPub update client'",
+  "object": "https://lemongrove.example.co.uk/2016/05/minimal-activitypub",
+  "published": "2014-12-14T14:14:14Z",
+  "to": ["https://lemongrove.example.co.uk/#aurora",
+         "https://mistywing.example.org/followers",
+         "https://lemongrove.example.co.uk/followers/"],
+  "cc": "https://oakfrost.example.com/brock"
+}
+
+      </pre>
+
+      <p>
+        It is NOT strictly required of servers to add or maintain “previously” lists.  A user may wish to move content without associating with an old address for many reasons. 
+      </p>
+
+      <h3>Sending Notifications</h3>
+
+      <p>
+        Destination servers SHOULD NOT normally send notifications to followers of bulk copied objects. Our assumed model for account migrations is that most likely the account’s original followers already saw those posts and messages, and will not be best accommodated by receiving additional unnecessary notifications.  It’s also possible at this stage that the user will copy content over and then change their mind about the whole account migration and stay with their old server.
+      </p>
+
+      <p>
+        That said, there may be reasons that the destination chooses to send some notifications to some other actors.  For example, there may be moderation processes that require some notifications, or the user may have explicitly selected to notify some actors, a group or all followers if that affordance was offered.
+        </p>
+
+      <h3>Not Fetched</h3>
+
+      <p>
+        Because we assume that a new account was setup on the destination server (and approved, if necessary) before copying content over, the following items should not be copied:
+      </p>
+
+      <ul>
+        <li>The Actor object will be consulted during account migration, but not copied.  </li>
+        <li>The Inbox does not need to be copied, it will be populated the normal way as messages are received.</li>
+        <li>The Followers collection will be reconstructed to the extent that followers, if notified of the account move, choose to follow the account at its new location. </li>
+      </ul>
+
+      <h4>Like, Follow and Block Activities</h4>
+
+      <p>
+        Because the destination can simply copy the “Liked”, “Following” and “Blocked” collections on the Actor, it need not copy all these activities.  The source server MAY omit these types of activity when providing a migration outbox.  The destination server can copy Like activity along with content, and Follow and Block activity in a separate operation when the user is ready.
+      </p>
+
+      <h4>Change Type Activities</h4>
+
+      <p>
+        Add, Update, Undo, Remove, Tombstone and Delete activities should not be copied.  Rather than propagate these, the results of changes SHOULD be provided by the source server.  
+      </p>
+
+      <p>
+        For example, if a server supports first a “Like” Activity then an “Undo” activity which reverse the Like, the server SHOULD NOT provide either of these in the migration outbox.  The source server can filter all Likes out anyway as this information is easier to process from the Actor’s “Likes” collection, so it can automatically filter out all Undo events linked to Like events as those should not be represented in the current “Likes” collection.
+      </p>
+
+      <p>
+        Another example, if a server posts a Note then replaces that with a Tombstone activity, the Tombstone activity SHOULD be omitted by the source and SHOULD NOT be copied by the destination.  
+      </p>
+
+      <p>
+        This choice is made because the purpose of account migration is not to provide a perfect replayable copy of all activity, but to provide a similar end result, and shooting for greater detail and replayability risks making the effort too effortful to be undertaken. This is an <b>open issue</b> and we need broader conversation on the implications of this intent.
+      </p>
+
+      <h4>Other Activity Types</h4>
+
+      <p>The following activity types from Activity Vocabulary may be copied or ignored individually or en masse. </p>
+
+      <ul>
+        <li>Announce</li>
+        <li>Arrive</li>
+        <li>Dislike</li>
+        <li>Invite</li>
+        <li>Listen</li>
+        <li>Offer </li>
+        <li>Read</li>
+        <li>Reject</li>
+        <li>TentativeAccept</li>
+        <li>TentativeReject</li>
+        <li>Travel</li>
+        <li>View</li>
+      </ul>
+
+      <p>
+        <b>Flag</b> activities should be ignored (by the destination) or omitted (by the source).  Flag activities are more relevant when the content that was flagged was originally posted, and not so relevant later.
+      </p>
+
+      <p>
+        <b>Ignore</b> activities SHOULD be copied if the server is capable of honoring an Ignore activity as it appears.  If the server does not handle Ignores, it SHOULD NOT copy it.
+      </p>
+
+      <p>
+        <b>Join</b> and <b>Leave</b> activity migration are not yet specified as Group collection migration is not yet specified and they seem to interact. 
+      </p>
+
+      <p>
+        <b>Question</b> activities SHOULD be copied but the destination MAY close them when copying if they are not closed.
+      </p>
+
+      <h3>Inferring and Setting Permissions</h3>
+
+      <p>It would be really great to have interoperable schemas for permissions.  In the meantime, even without explicit 
+        permissions, a destination can make some pretty good choices.</p> 
+
+      <p>First, a follower list is often a guide to what content should be readable by whom.  It seems like it would fit 
+        most users’ intended use cases if content addressed to their followers on their old server is now readable by their 
+        followers on a new server, even if the follower lists are not identical.  </p>
+      <p>A destination may allow the user to communicate intent for permissions before or after an account migration.  
+        If getting the user intent happens afterward, it probably is best to default to private and then change the content 
+        to being more available on user confirmation.</p>
+
+
+      <h3>
+        Load Management During Copying
+      </h3>
+      <p>
+        Copying all the data from an account can be time consuming, as well as eat up resources.  A source server that 
+        announces it is going to shut down is likely to get many transfer requests underway.  The possibility for other 
+        servers to have excess traffic must also be considered.  With the exception of the 429 status code and the need 
+        for the destination to understand that status code, this section is informative. 
+      </p>
+      <p>
+        Source servers have a number of tools and mechanisms to use to keep load manageable thanks to the design of
+        <a href="https://www.rfc-editor.org/rfc/rfc7230">HTTP</a> and
+        <a href="https://www.w3.org/TR/activitystreams-core/">ActivityStreams</a>.  
+      </p>
+      <ul>
+        <li>Good ActivityStream pagination settings should be chosen for long collections of items.</li>
+        <li>The source maintains no state during this phase, so load-balancing should be available as it normally would be.</li>
+        <li>The source may limit active OAuth tokens per account or Actor, to avoid a single user from initiating too many 
+        data copy sessions concurrently</li>
+        <li>The source MAY reply to requests with 429 Too Many Requests (<a 
+          href="https://www.rfc-editor.org/rfc/rfc6585.html">RFC6585</a>, see also Retry-After</li>
+        <li>The source may also implement throttling by slowing responses in some internal way that does not change the 
+        response itself, just its timing.</li>
+      </ul>
+
+      <p>If the destination receives a 429 response, it SHOULD respect the Retry-After header and continue later.</p>
+
+      <p>
+        The destination has more state to maintain to keep track of what has been already copied and what remains to be
+        fetched, but it is also in full control of the pace of requests.    As for the number of data-transfer jobs that the 
+        destination could have going at once (if a server risks becoming overwhelmed by many users requesting that it 
+        transfer content), the destination can always reject user requests for new data transfer jobs by refusing the
+        user when the user or client interaction makes the request.  
+      </p>
+
+
+
+    </section>
+
+    <section>
+
+      <h2>Followup Work</h2>
+
+      <h3>Post-Copy Destination Jobs</h3>
+
+      <p>
+        After copying a user’s account it is the destination’s responsibility 
+        to use its own UI and notification channels to notify the user and provide error/warning detail if any.  
+      </p>
+
+      <p>
+        Objects where the source format could not be understood and was dropped, keeping only the final content,  
+        may be less editable in the future, so although this is allowed it may merit warning the user.
+      </p>
+
+      <p>
+        If a Following list was copied, the destination may issue Follow activities.  The destination may also provide 
+        an option to NOT do this in case the user wishes to test out the account and content before committing to 
+        issuing Follow activities from this new location.
+      </p>
+
+      <p>
+        Reporting failed attempts back to the user is also up to the destination server using its own UI and 
+        notification channels.  A destination MAY fail an account transfer for a number of reasons (e.g. quota reached, 
+        access lost) and SHOULD NOT keep an account transfer job going forever, although appropriate timeouts are not 
+        specified here. 
+      </p>
+
+
+      <h3>Followup Requirements on Source Server</h3>
+
+      <h4>Notifying Followers</h4>
+
+      <p>
+        The source server SHOULD offer UI for the user to choose to notify followers of a new location.  This is 
+        done via the Move Activity type, defined in 
+        <a href="https://www.w3.org/TR/activitystreams-vocabulary/#dfn-move">ActivityStreams Vocabulary</a> 
+        and described more for use to move Actors in the 
+        <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">Move Actor FEP</a>.
+      </p>
+
+      <p>
+        Load management: it is possible that the source server issuing Move activities could cause many follower
+        agents to issue a great deal of data fetching requests to the destination.  A malicious source server
+        could issue false Move Activities in an attempt to overload the alleged destination server with follow
+        requests and other requests. More discussion of this threat is welcome, but so far this seems self-limiting
+        because a malicious source server would have to have followers to send to a false destination, and
+        would presumably lose its followers and run out of them during this process.
+      </p>
+
+      <p>
+        Open Issue: Can the destination server send out Move activity if necessary?  This document proposes that the 
+        answer should be NO.  It cannot easily be trusted, because a malicious actor could issue a Move activity 
+        with the 'object' value an Actor ID they have no access to.  If we can't count on the
+        source server sending the Move Activity because it is not cooperating or not able to, then we also 
+        can't count on the source server verifying a destination-issued Move Activity. Until a more robust 
+        verification mechanism is designed (e.g. user-signed Move Activity with a previously known or proven key)
+        then we might as well not issue Move Activities on the destination.  See the Third-Party section for 
+        consequences for other agents.
+      </p>
+      
+
+      <h4>Hosting Moved Actors</h4>
+
+      <p>
+        The source server SHOULD offer UI for the user to choose to mark their Actor as moved to the new server.   
+        This is accomplished via the ‘movedTo’ property as explained and described in Data Portability in ActivityPub 
+        The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content 
+        while still hosting just the Actor with the ‘movedTo’ 
+        property.  The source server SHOULD attempt to maintain this information for at least a year even if the account 
+        is otherwise shut down.  The source server might not maintain the movedTo property on the correct Actor URL 
+        for a number of legitimate reasons (including change of domain which changes the URL, a request from the account 
+        holder to stop maintaining the movedTo value, or a request from the account holder to completely delete the Actor.) 
+      </p>
+
+
+      <p>
+        The movedTo property is defined in 
+        <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">FEP 7628</a>
+        and its associated <a 
+        href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/context.jsonld">JSON-LD definition</a>.
+      </p>
+
+      <p>Example:</p>
+      <pre>
+
+{
+  "@context": [
+      "https://www.w3.org/ns/activitystreams",
+  ],
+  "id": ""https://lemongrove.example.co.uk"",
+  "type": "Person",
+  "name": "Aurora Lemongrove",
+  "movedTo": "https://newsite.example.org/aurora/"
+}
+      </pre>
+
+
+      <h4>Hosting Redirects for Objects</h4>
+
+      <p>After an Actor has been configured with a "movedTo" value, the source server might still receive 3rd-party GET requests 
+        for Objects that don't exist any more, but the source server knows that the requested object once belonged with the Actor.  
+        How the source server knows this will be implementation dependent, but here are some possibilities:</p>
+
+      <ul>
+        <li>
+          If the original Actor identity is part of the URL of the Object that is no longer served, the source server can use that to look up the Actor and find the movedTo value.
+        </li>
+        <li>
+          If the source server has another identity in the URL of the object that is no longer served, such as a name for a login account or an ActivityStream, it may have to keep a mapping from that name to the Actor name to then find the move destination.
+        </li>
+        <li>
+          If the source server uses numeric or GUID identifiers in the URL and does not have another way to find the original 
+          Actor, it may need to keep a list of moved Objects and what Actor they were once associated with if it intends to 
+          redirect moved-Object GET requests.
+        </li>
+      </ul>
+
+      <p>
+        Once the source server has figured out which Actor and what the appropriate ‘movedTo’ value is, it can now issue a 
+        HTTP 301 Moved Permanently response with a URL to the destination.  This SHOULD be a URL the destination's Actor ID 
+        with an additional parameter "redirect_ap_obj", and the value of that parameter is the requested object ID in percent-encoding per [RFC3986] section 2.1:
+      </p>
+
+      <pre>
+
+&lt;actor URL&gt;?redirect_ap_obj=&lt;percent-encoded source object ID&gt;
+
+      </pre>
+
+      <p>
+        When the 3rd-party follows the URL containing the destination and the object ID it requested, the destination MAY 
+        respond directly to this URL with the object or it MAY provide another Redirect response to point to the real new URL 
+        (or some other appropriate response such as an error).  Since the destination server SHOULD be keeping breadcrumbs, 
+        it SHOULD be able to look up the object ID.  If the destination server cannot identify the new object ID, it SHOULD 
+        return 404 Not Found.  
+      </p>
+
+      <p>Note that this solution is very friendly to 3rd parties that are not only unaware of this specification but also 3rd parties that are browsers or other HTTP agents.</p>
+
+      <p>
+        Note that a user may move their accounts AGAIN within the timeframe that their first server is still serving
+        redirects.  It may be possible to fix up the ‘movedTo’ value on the first server, but it is also possible
+        that the first server shows a ‘movedTo’ to a second server which shows a ‘movedTo’ to a third server. No
+        3rd-party is obliged to follow these links for any longer than they are inclined before giving up.
+      </p>
+
+    </section>
+
+      <section> 
+      <h2>Third-Party ActivityPub Server Behavior</h2>
+
+      <p>
+        A server not involved in an account migration either as a source or destination is a third-party.  
+        Third-parties can be aware of this specification and can implement this section, in which case
+        the conformance langage in this section becomes normative for that implementation.
+      </p>
+
+      <h3>Relying on 'previously' values</h3>
+
+      <p>
+        The value of the 'previously' field can be used for a number of use cases, including to find out if 
+        the current third-party Actor has 'liked' a moved object, if they have replied to it, or if it was
+        previously muted/ignored.
+        If a third-party makes use of the 'previously' value, which it is not obliged to do, this specification
+        RECOMMENDS validating the information.  
+      </p>
+
+      <p>
+        Validating the 'previously' field is necessary not for all URLs in it, but for any URL that would
+        result in a change of behavior for the third-party (such as hiding a Object based on a URL in its 
+        'previously' field). That URL is validated by the third-party
+        checking the original Actor to make sure that it does have a 'movedTo' value pointing to the next
+        Actor.  If the next Actor is not the current provider of the 'previously' value, then either the chain
+        must continue to be validated, or the third-party can give up and decide the URL is not validated.
+      </p>
+
+      <p>
+        These validation checks can fail not because they are wrong but because one of the Actors needed
+        to validate is no longer online.  If that is the case, a cache or oracle mapping MAY be used
+        instead.  See cache considerations below in "Handling Move Activity and 'movedTo' property".
+      </p>
+
+      <p>
+        If a "previously" value cannot be trusted, the expected behavior (though not REQUIRED) is that 
+        it be ignored but retained for future consumers. 
+        Ignoring a "previously" value reduces the situation to an existing common situation, where ActivityPub agents 
+        cannot be sure if an Object has been copied from somewhere else or not.
+      </p>
+
+
+      <p>
+        Some sample decision factors to consider (informative) when deciding whether to make use
+        of an unvalidated 'previously' breadcrumb:
+      </p>
+
+      <ul>
+        <li>If it looks like the current Actor has previously "liked" an Object based on its breadcrumb, but that 
+          breadcrumb cannot be verified, it's safer not to show it as "liked" - just as if it were a new Object.
+        </li>
+        <li>If it looks like the Object should be hidden based on its breadcrumb, but that breadcrumb cannot be verified,
+          either hiding it (conservative approach to hiding probable-unwanted content) or showing it 
+          (as if it were a new object, ignoring the breadcrumbs) both seem like justifiable behaviors
+          depending on context.
+        </li>
+      </ul>
+
+      <h3>Following up a ‘Like’ of moved object</h3>
+
+      <p>
+        When a third-party server has a ‘Like’ activity pointing to a moved Activity, it need not take any action to fix 
+        up ‘Like’ links.  However sometimes a user wants to dereference a Like and find the original article.  When the user 
+        is browsing their Likes and the ActivityPub server is aware of it, the server can attempt to use the original location 
+        and object ID of the Liked activity to find the activity’s new location.  
+      </p>
+
+      <p>
+        Open Issue: will the server even detect that the Like reference has moved?  It may only present a 
+        link to the remote object and not ever try to dereference it.
+      </p>
+
+      <p>
+        When a user is browsing Likes via ActivityPub client or using another C2S protocol, a smart client may
+        find itself in the same situation - the user just clicked on a Like and the thing liked has moved.
+      </p>
+
+      <p>
+        The agent requesting the Liked item may receive a generic redirect to an Actor, not an Object (this won’t
+        be obvious until the referenced resource is fetched).  If the agent finds an Actor, it may fetch a number
+        of objects hoping to find one with a breadcrumb matching the original Like reference.
+      </p>
+
+      <p>
+        Open Issue: should the Like activity then be rewritten with the new location? Can a client do this - is
+        there an affordance to update a Like? 
+      </p>
+
+      <h3>Handling Move Activity and 'movedTo' property</h3>
+
+      <p>
+        Move Activity objects, if processed at all, MUST be checked to be sure that the sender is responsible for the
+        Actor listed in the 'object' field, to prevent malicious unauthorized Move Activity objects from being
+        issued by other parties.  If the sender does not appear to be responsible, a third party MAY 
+        check the Actor object listed in the 'object' field to see if there is a matching 'movedTo' property.
+        Move Activity objects that cannot be verified SHOULD be ignored.
+      </p>
+
+      <p>
+        Mappings of old Actor URLs to new locations listed in Move Activity objects or movedTo properties MAY
+        be cached to make it more efficient to validate "previously" values on objects.  A hypothetical 
+        cache might attempt to refresh the mapping if it is over 24 hours old, but if it can't be refreshed to 
+        maintain the cached value for much longer.  This design would allow mistakes to be corrected (such
+        as a 'movedTo' value that simply has the wrong URL, or a change of mind has occurred) while still
+        allowing longer-term validation of "previously" values even when the Actor's original server has
+        stopped serving the Actor object.
+      </p>
+
+    </section>
+    <section class="informative">
+      <h2>Not In Scope</h2>
+      <p>
+        Interoperable formats for export/import are not in scope.  The collections defined to provide migration data can 
+        lead smoothly to an interoperable export/import format that can share much code with support for this specification; 
+        however many of the recommendations for this specification are tied to its use for re-homing content in a 
+        best-effort server-to-server move.  As an example, the destination server can skip over content it doesn't handle in an
+        account transfer, whereas export/import use cases could have a different approach due to many differences in
+        context.
+      </p>
+
+      <p>
+        Signatures are out of scope.
+      </p>
+      <p>
+        Nomadic identities (in particular, how to transfer the identity itself) are out of scope, though some recommendations
+        accounting for the existence of nomadic identities have been made.
+      </p>
+    </section>
+
+    <section id="conformance">
+      <p>This is required for specifications that contain normative material.</p>
+    </section>
+    
+
+  </body>
+</html>

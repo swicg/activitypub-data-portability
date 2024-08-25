@@ -90,7 +90,8 @@
       <p>
         Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved
         which is useful for testing of all kinds.  The mechanisms are independent of each other (beyond assuming
-        the account migration authorization token), thus allowing reuse - e.g., the mechanisms for notify/redirect can
+        the account migration authorization token), thus allowing reuse.  For instance, the mechanisms for 
+        notify/redirect can
         also be used after a user moves to a new location using a different approach.
       </p>
 
@@ -241,10 +242,10 @@
       <h4>Content can be filtered at the source</h4>
 
       <p>
-        Our default assumption is that authorizing account portability access means that the source server will allow
-        an entire account to be copied for account migration, but this is not always going to be the case.  A source
+        Our default assumption is that authorizing access account portability  means that the source server will allow
+        an entire account to be copied for account migration, but this will not always be the case.  A source
         server MAY provide filters or additional scoping as an advanced feature to users.    A server might offer to
-        filter or restrict based on permissions, tags, collections or types. We accept this reality because limits can
+        filter or restrict based on permissions, tags, collections or types. We accept this reality, because limits can
         be applied in ways that aid interoperability, privacy, or other user goals. Ideally, the decision to filter or
         limit data transfer is a decision that the user makes, not one that the source server imposes on the user,
         because overprotective filtering can result in content lock-in.
@@ -710,7 +711,7 @@
 ]
       </pre>
 
-      <p>The `actor` value SHOULD be included, because there is no guarantee that a 3rd party can
+      <p>The `actor` value SHOULD be included, because there is no guarantee that a 3rd party will be able to
         derive the `actor` value from an `id` value. The `actor` value is needed in order to
         validate the previous `id` value before trusting it.  Because
         the destination server simply attests to the `previously` value, it cannot be entirely trusted without
@@ -720,8 +721,8 @@
 
       <p><b>Open Issue:</b> This proposal needs more discussion to decide whether it's worthwhile.  The whole point of 
         breadcrumbs is to "solve" the problem an object that has been liked moving to a new location, while balancing
-        tradeoffs such as not overwhelming a network through massive amounts of activity triggered by an Actor's move.  
-        To expand on the problem, a few use cases follow:
+        concerns such as network bandwith consumed by large amounts of activity triggered by an Actor's move.  
+        To expand on the problem, a few use cases which illustrate functional requirements or nice-to-haves follow.
       </p>
 
       <ul>
@@ -731,16 +732,17 @@
           tempted to "like" it again.
         </li>
         <li>
-          Cherry's server hides unwanted content based on a list of blocked Actors, so it would be nice if
-          it could identify content that had been moved from blocked Actors and continue to hide this content.
+          Cherry's server hides unwanted content based on a list of blocked Actors. It would be nice the server
+          could identify content that had been moved from blocked Actors and continue to hide this content.
         </li>
         <li>
-          That said, it is possible for an ActivityPub server to host false breadcrumbs, so a defensive use
-          case would be that: even when malicious user 'Voldemort' posts an article with a `previously` property
-          including the id of Aurora's article, Cherry can tell that he did NOT actually "like" this new article.
+          A server with user Voldemort hosts false breadcrumbs on new articles, using URL values of articles
+          that were "liked" by the viewing user, such as Aurora's article that Cherry previously "liked".  
+          Cherry should be able to tell that he had <i>not</i> actually "liked" this new article. 
         </li>
-        <li>Finally, it would be nice if Cherry can reliably tell which articles he already liked even if Aurora's 
-        original server is no longer accessible and even if Voldemort is providing false breadcrumbs.</li>
+        <li>Cherry should be able to reliably tell which articles he already liked even if Aurora's 
+          original server is no longer accessible and even if Voldemort is providing false breadcrumbs.
+        </li>
       </ul>
 
       <p>If Aurora's original Actor's `movedTo` value can be verified, breadcrumbs on the destination
@@ -1102,10 +1104,10 @@
         This is accomplished via the `movedTo` property as explained and described in Data Portability in ActivityPub 
         The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content 
         while still hosting just the Actor with the `movedTo`
-        property.  The source server SHOULD attempt to maintain this information for at least a year even if the account 
+        property.  The source server SHOULD attempt to maintain this information for at least a year, even if the account 
         is otherwise shut down.  The source server might not maintain the `movedTo` property on the correct Actor URL 
         for a number of legitimate reasons (including change of domain which changes the URL, a request from the account 
-        holder to stop maintaining the `movedTo` value, or a request from the account holder to completely delete the Actor.) 
+        holder to stop maintaining the `movedTo` value, or a request from the account holder to completely delete the Actor).
       </p>
 
 
@@ -1233,7 +1235,7 @@
       <ul>
         <li>
           If it looks like the current Actor has previously "liked" an Object based on its breadcrumb, but that
-          breadcrumb cannot be verified, it can be safer not to show it as "liked" - just as if it were a new Object.
+          breadcrumb cannot be verified, it can be safer to not show it as "liked" - just as if it were a new Object.
         </li>
         <li>
           If it looks like the Object should be hidden based on its breadcrumb, but that breadcrumb cannot be verified,
@@ -1284,11 +1286,11 @@
       </p>
 
       <p>
-        Mappings of old Actor URLs to new locations listed in Move Activity objects or movedTo properties MAY
+        Mappings of old Actor URLs to new locations listed in Move Activity objects or `movedTo` properties MAY
         be cached to make it more efficient to validate `previously` values on objects.  A hypothetical
-        cache might attempt to refresh the mapping if it is over 24 hours old, but if it can't be refreshed to 
-        maintain the cached value for much longer.  This design would allow mistakes to be corrected (such
-        as a 'movedTo' value that simply has the wrong URL, or a change of mind has occurred) while still
+        cache might attempt to refresh the mapping if it is over 24 hours old, but, if it can't be refreshed, to 
+        maintain the cached value for much longer.  This design would allow mistakes (such
+        as a `movedTo` value that simply has the wrong URL, or a change of mind has occurred) to be corrected while still
         allowing longer-term validation of `previously` values even when the Actor's original server has
         stopped serving the Actor object.
       </p>

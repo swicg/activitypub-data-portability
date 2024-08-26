@@ -89,23 +89,25 @@
 
 
       <p>
-        The primary user need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation
-        and defederation decisions.  The connections between servers and the communities on servers form a structure that has 
-        close connections, looser connections, and explicit blocks, allowing many different types of communities to co-exist.  
-        That does put a lot of pressure on users to be able to move their accounts (due to moderation decisions they disagree 
-        with, because of server defederation, or just to move closer to an affinity group).   A user making such an account move 
-        will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and 
-        sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can 
+        One important need to solve with LOLA is to allow Fediverse users to move their accounts in response to moderation
+        and defederation decisions.  The Fediverse allows some close connections (same server), looser connections (federated
+        servers), and explicit blocks (defederated servers), and these connections change over time.
+        That does put a lot of pressure on the system to allow users to move their accounts.  A user moving an account
+        will sometimes want to copy their previously posted content to their new location, sometimes follow the same people, and
+        sometimes notify their followers so their followers can resubscribe in a new location.  Servers implementing LOLA can
         provide these choices to users.
       </p>
 
       <p>
-        Several secondary use cases are enabled by this approach.  It allows accounts to be copied and NOT moved
-        which is useful for testing of all kinds.  The mechanisms are independent of each other (beyond assuming
-        the account migration authorization token), thus allowing reuse.  For instance, the mechanisms for 
-        notify/redirect can
-        also be used after a user moves to a new location using a different approach.
+        Other events may cause users to make very similar decisions.  Users may wish to move to a domain of their own.
+        Fediverse servers can go out of business, servers may change whether/how they charge users, or other decisions
+        may drive the user to a different server.
       </p>
+      <p>
+        Some more divergent use cases are enabled by this approach, because it allows accounts to be copied and NOT moved.
+        The fetch, save and notify mechanisms are independent of each other and can be used separately; some content can be
+        fetched and saved or used and not other content.
+       </p>
 
       <p>Some use cases are not covered by this approach.  An offline server cannot participate in server-to-server portability mechanisms.  Servers may also be unwilling or unable to communicate directly in any way.  If the unwillingness to communicate is part of ‘defederating’ another server, we recommend that account portability be an exception to the defederation logic, as moving accounts is an important part of helping defederation work well for more people.</p>
 

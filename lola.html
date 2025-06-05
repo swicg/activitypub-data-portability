@@ -103,6 +103,12 @@
         Fediverse servers can go out of business, servers may change whether/how they charge users, or other decisions
         may drive the user to a different server.
       </p>
+      <p>One type of use case isn't really a move of content so much as a renaming of URLs (for example, when a service
+        changes domain name or changes its implementation or URL paths such that URLs of Actors and Activities changes).
+        In these use cases, no copying of content is necessary. However, other parts of this specification might be useful
+        in such cases.  The server changing its URLs could use the mechanisms to flag that an item was renamed so that 
+        external references can be fixed over time.  
+      </p>
       <p>
         Some more divergent use cases are enabled by this approach, because it allows accounts to be copied and NOT moved.
         The fetch, save and notify mechanisms are independent of each other and can be used separately; some content can be
@@ -553,17 +559,28 @@
         <li>redirect_uri</li>
         <li>scope=<b>activitypub_account_portability</b></li>
         <li>state - a random string verified by destination later</li>
+        <li>client_id parameter OR DPoP header</li>
       </ul>
+
+      <p>The client_id (OAuth2) or DPoP proof (RFC9449) are intended to prove that the OAuth client (the account destination)
+      is who they say they are.  In the Fediverse, servers offering account portability may not care whether the destination 
+      is verified - it could be enough that the user authorizes access, or that the redirect_uri has the domain 
+      of a known Fediverse service.  However, if the source server cares to do a more rigorous check, it can either require a 
+      client_id and associated client_secret to be pre-configured, or it can accept a DPoP proof using the same key that is used 
+      between Fediverse servers when HTTP signatures are used.  If a source server rejects a request because it requires proof 
+      of destination identity, or because that proof was incorrect, it should explain its requirements (which it is able 
+      to do with Web GUI presented to the user, cutting short the OAuth dance).
+      </p>  
 
 
       <h3>Source server verifies </h3>
-      <p>Upon receiving the Oauth authorization request, the source server has a number of things to verify or decide.</p>
+      <p>Upon receiving the OAuth authorization request, the source server has a number of things to verify or decide.</p>
 
       <ul>
         <li>Is the session over which this request is made authenticated? If not, the source server may need to authenticate the user and then resume.  A source server MAY request re-authentication at this point because account portability access can provide access to sensitive data.</li>
         <li>Should it allow this request for the given authenticated user?  Although of course the source server MAY reject this request if a user has been suspended in some way, there are good arguments for allowing suspended users to still migrate their content to other servers. There are also reasons to block this, so the source server MAY block the user from granting portability access.</li>
         <li>Should the source server allow this request for the given requesting server? It may be natural to consult a list of defederated servers while making this decision, but there are good arguments to allow a defederated server to gain access to the data of a user who really wants to move to that server.  There are also good arguments NOT to, so the source server MAY block the access request based on which destination server is asking.  </li> 
-        <li>Can the source server verify that the redirect_uri is legitimately to a known and trusted destination server? It may not be possible to verify this by comparing the redirect_uri root to a list of allowed federated servers, due to the possibilities for different software to run on one host.  This is still an <b>open issue</b> and we should discuss how the source server can validate the destination server here.</li>
+        <li>Does the source server need to trust the destination server?</li>
         <li>Are there any additional options it wants to offer the user?  For example, the source server could offer to filter private objects out of the data shared with the destination server.  If the user chooses to filter or limit scope, the source server MUST keep track of this when evaluating access requests using the account migration authorization token.</li>
       </ul>
 

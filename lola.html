@@ -573,11 +573,11 @@
         <li>client_id parameter OR DPoP header</li>
       </ul>
 
-      <p>The client_id (OAuth2) or DPoP proof (RFC9449) are intended to prove that the OAuth client (the account destination)
+      <p>The `client_id` ([OAuth2](https://www.rfc-editor.org/rfc/rfc6749.html)) or DPoP proof ([RFC9449](https://www.rfc-editor.org/rfc/rfc9449.html)) are intended to prove that the OAuth client (the account destination)
       is who they say they are.  In the Fediverse, servers offering account portability may not care whether the destination 
-      is verified - it could be enough that the user authorizes access, or that the redirect_uri has the domain 
+      is verified — it could be enough that the user authorizes access, or that the `redirect_uri` has the domain 
       of a known Fediverse service.  However, if the source server cares to do a more rigorous check, it can either require a 
-      client_id and associated client_secret to be pre-configured, or it can accept a DPoP proof using the same key that is used 
+      `client_id` and associated `client_secret` to be pre-configured, or it can accept a DPoP proof using the same key that is used 
       between Fediverse servers when HTTP signatures are used.  If a source server rejects a request because it requires proof 
       of destination identity, or because that proof was incorrect, it should explain its requirements (which it is able 
       to do with Web GUI presented to the user, cutting short the OAuth dance).

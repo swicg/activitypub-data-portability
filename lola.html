@@ -70,8 +70,7 @@
       <h2>Approach</h2>
       <p>The technical approach proposed for LOLA is, at a high level: </p>
       <ul>
-        <li>Source server advertises an OAuth endpoint for authorizing account portability (this can co-exist with other 
-        OAuth endpoints e.g.  for authenticating the user).</li>
+        <li>Source server advertises an OAuth endpoint for authorizing account portability.</li>
         <li>Destination server initiates OAuth to gain user authorization and give the destination server a secure token 
         for source server access requests.</li>
         <li>Destination server can use the secure token and find the right endpoints to start fetching data from the 
@@ -455,7 +454,10 @@
       <p>ActivityPub servers supporting this specification SHOULD include
    the URL of their portability authorization endpoint in their
    authorization server metadata document [RFC8414] using the
-   <b>activitypub_account_portability</b> parameter.</p>
+   <b>activitypub_account_portability</b> parameter.  This MAY be the same OAuth endpoints
+      used for other authorization purposes - a server might have the same OAuth endpoints
+      listed for user login as for account portability authorization.  However, the account
+      portability OAuth endpoint MAY be different from OAuth endpoints used for other purposes.</p>
 
       <p>This parameter name will need to be registered in the IANA "OAuth
    Authorization Server Metadata" registry established by [RFC8414].</p>

@@ -2,7 +2,7 @@
 <html>
   <head>
     <meta charset="utf-8" />
-    <title>LOLA Portability for ActivityPub (0.2)</title>
+    <title>LOLA Portability for ActivityPub (0.3)</title>
     <script
       src="https://www.w3.org/Tools/respec/respec-w3c"
       class="remove"
@@ -22,6 +22,23 @@
         github: "swicg/activitypub-data-portability/lola",
         shortName: "LOLA",
         group: "socialcg",
+        localBiblio: {
+          "FEP-73CD": {
+            title: "Migration User Stories",
+            href: "https://codeberg.org/fediverse/fep/src/branch/main/fep/73cd/fep-73cd.md",
+            publisher: "Fediverse Enhancement Proposals"
+          },
+          "FEP-D8C2": {
+            title: "OAuth 2.0 Profile for the ActivityPub API",
+            href: "https://codeberg.org/fediverse/fep/src/branch/main/fep/d8c2/fep-d8c2.md",
+            publisher: "Fediverse Enhancement Proposals"
+          },
+          "FEP-7628": {
+            title: "Move Actor",
+            href: "https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md",
+            publisher: "Fediverse Enhancement Proposals"
+          }
+        },
         otherLinks: [
           {
             key: "Related documents",
@@ -135,7 +152,7 @@
 
       <p>Some use cases are not covered by this approach.  An offline server cannot participate in server-to-server portability mechanisms.  Servers may also be unwilling or unable to communicate directly in any way.  If the unwillingness to communicate is part of ‘defederating’ another server, we recommend that account portability be an exception to the defederation logic, as moving accounts is an important part of helping defederation work well for more people.</p>
 
-      <p>The <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/73cd/fep-73cd.md">Migration User Stories</a> FEP has a number of use cases that can be solved with LOLA, as well as some that can't.  Those intended to be addressed: </p>
+      <p>The [[?FEP-73CD]] FEP has a number of use cases that can be solved with LOLA, as well as some that can't.  Those intended to be addressed: </p>
 
       <ul>
         <li>1A Account-level redirect: Yes</li>
@@ -551,9 +568,6 @@
           Actor names (not only the 'name' property but also the portion of the Actor ID that contains the name if applicable) may differ at the source and destination, and may be different than the names used as user identifiers by either system.  A user with an account identity such as “Alice” may transfer the “DeepThoughts” actor data on server A “@deepthoughts@a.example” to a “PhilosophicalMusings” actor owned by the account “AMuse” “@philomuse@b.example”, as long as she can log into both accounts and has permissions to authorize the transfer on both ends.
         </li>
         <li>
-          Nomadic IDs (E.g. [FEP-ef61]), on the other hand, may allow an actor’s identity to be identical across servers.  <b>Open Issue</b>: How do servers supporting nomadic IDs transfer such IDs? how independent of account content migration is it?
-        </li>
-        <li>
           URL discovery allows the account migration “outbox” to be different from the normal outbox if the source server prefers to implement it at a different URL, but it can also be the same URL.  There may be a number of differences between migration outbox and regular outbox, caused by permissions settings, filtering unnecessary items, filters explicitly chosen by the user, or other reasons we can't foresee now.  That said, a simple implementation can probably be successful using the same URL for both. 
         </li>
       </ul>
@@ -565,7 +579,7 @@
       <h2>Authorization</h2>
 
       <p>
-        This specification is compatible with and independent of the OAuth 2.0 Profile for the ActivityPub API specification [FEP-d8c2].   A server would be able to implement this specification and yet not use OAuth for user authentication, although the author thinks it would be best to support OAuth for both.
+        This specification is compatible with and independent of the OAuth 2.0 Profile for the ActivityPub API specification [[?FEP-D8C2]].   A server would be able to implement this specification and yet not use OAuth for user authentication, although the author thinks it would be best to support OAuth for both.
       </p>
 
       <p>Servers supporting this specification MUST support this OAuth mechanism to grant authorization.  However, a 
@@ -1329,11 +1343,15 @@ This new property is
       <h4>Notifying Followers</h4>
 
       <p>
-        The source server SHOULD offer UI for the user to choose to notify followers of a new location.  This is 
-        done via the Move Activity type, defined in [[activitystreams-vocabulary]]
-        and described more for use to move Actors in the 
-        <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">Move Actor FEP</a>.
+        The source server SHOULD offer UI for the user to choose to notify followers of a new location.  This is done via the Move Activity type, defined in [[activitystreams-vocabulary]].
+        As originally documented in [[?FEP-7628]], but included here as normative information:
       </p>
+      <ul>
+        <li>`type`: The type of activity MUST be `Move`</li>
+        <li>`actor`: The actor performing the migration, usually the original or source</li>
+        <li>`object`: the old primary actor ID</li>
+        <li>`target`: the new primary actor ID</li>
+      </ul>
 
       <p>
         Load management: it is possible that the source server issuing Move activities could cause many follower
@@ -1345,14 +1363,11 @@ This new property is
       </p>
 
       <p>
-        Open Issue: Can the destination server send out Move activity if necessary?  This document proposes that the 
-        answer should be NO.  It cannot easily be trusted, because a malicious actor could issue a Move activity 
-        with the 'object' value an Actor ID they have no access to.  If we can't count on the
-        source server sending the Move Activity because it is not cooperating or not able to, then we also 
-        can't count on the source server verifying a destination-issued Move Activity. Until a more robust 
-        verification mechanism is designed (e.g. user-signed Move Activity with a previously known or proven key)
-        then we might as well not issue Move Activities on the destination.  See the Third-Party section for 
-        consequences for other agents.
+        This specification does not define what happens if a server other than the source server
+        sends a `Move` Activity notification or otherwise attempts to notify that the Actor on
+        the source server has moved.  There are trust issues to resolve when the sender includes
+        in the 'object' value an Actor ID they have no authority over.  Leaving this undefined
+        leaves future specifications able to solve trust problems if this is important functionality.
       </p>
       
 
@@ -1360,7 +1375,12 @@ This new property is
 
       <p>
         The source server SHOULD offer UI for the user to choose to mark their Actor as moved to the new server.   
-        This is accomplished via the `movedTo` property as explained and described in Data Portability in ActivityPub 
+        This is accomplished by setting the `movedTo` property value to the new Actor URI.  The `movedTo`
+        property is defined in this specification, but full credit for the original public specification
+        belongs to 'silverpill' who documented Mastodon's functionality in [[?FEP-7628]]. The
+        `@id` of `movedTo` remains as defined in that document.
+      </p>
+      <p>
         The source server MUST offer an affordance (such as a dedicated UI exposed to the user) to delete their content 
         while still hosting just the Actor with the `movedTo`
         property.  The source server SHOULD attempt to maintain this information for at least a year, even if the account 
@@ -1370,12 +1390,15 @@ This new property is
       </p>
 
 
-      <p>
-        The movedTo property is defined in 
-        <a href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/fep-7628.md">FEP 7628</a>
-        and its associated <a 
-        href="https://codeberg.org/fediverse/fep/src/branch/main/fep/7628/context.jsonld">JSON-LD definition</a>.
-      </p>
+      <p>Context:</p>
+      <pre>
+{
+  "@context": {
+    "movedTo": {
+      "@id": "https://w3id.org/fep/7628#movedTo",
+      "@type": "@id"
+},
+  </pre>
 
       <p>Example:</p>
       <pre>
@@ -1534,14 +1557,18 @@ This new property is
         there an affordance to update a Like? 
       </p>
 
-      <h3>Handling Move Activity and 'movedTo' property</h3>
+      <h3>Handling `Move` Activity and 'movedTo' property</h3>
 
       <p>
-        Move Activity objects, if processed at all, MUST be checked to be sure that the sender is responsible for the
+        `Move` Activity objects, if processed at all, MUST be checked to be sure that the sender is responsible for the
         Actor listed in the 'object' field, to prevent malicious unauthorized Move Activity objects from being
         issued by other parties.  If the sender does not appear to be responsible, a third party MAY 
         check the Actor object listed in the 'object' field to see if there is a matching 'movedTo' property.
-        Move Activity objects that cannot be verified SHOULD be ignored.
+        `Move` Activity objects that cannot be verified SHOULD be ignored.
+      </p>
+
+      <p>A `Move` Activity notification may result in one or more actors unfollowing the original
+        object and following the new obect.  This could happen automatically or with user oversight.
       </p>
 
       <p>

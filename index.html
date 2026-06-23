@@ -39,7 +39,7 @@
       </p>
     </section>
     <section id="sotd">
-        <p>This is a draft for a future SocialCG report.</p>
+        <p>This is a draft of a future SocialCG report.</p>
       </section>
     <section class="informative">
       <h2>Introduction</h2>
@@ -49,7 +49,32 @@
         implementations, moving to different installations of the same
         software, or changing domains.
       </p>
+
+    <section class="informative">
+      <h2>Terminology</h2>
+
+      <p>
+        The following terms are used to describe concepts in this report.
+      </p>
+
+      <dl class="termlist">
+        <dt><dfn data-lt="instance|instances">instance</dfn></dt>
+        <dd>An informal name for an ActivityPub <a>server</a>, specifically,
+          a particular instance of a given ActivityPub server implementation.
+          In current implementations, instances are typically bound to a given
+          URL / Web domain, which has implications for identity portability and
+          data portability in general.
+        </dd>
+        <dt><dfn data-lt="server|servers">server</dfn></dt>
+        <dd>
+          An implementation of an <strong>ActivityPub conformant Server</strong>,
+          as defined in
+          <a href="https://www.w3.org/TR/activitypub/#specification-profiles">ActivityPub
+            Specification Profiles</a>. <em>See also:</em> <a>instance</a>.
+        </dd>
+      </dl>
     </section>
+
     <section>
       <h2>Data elements</h2>
       <p>
